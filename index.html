@@ -1,0 +1,1905 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FLOWX</title>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        :root {
+            --bg-color: #0a0c0e;
+            --surface-color: #16191d;
+            --text-white: #ffffff;
+            --text-gray: #8e9299;
+            --text-dim: #5c6169;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-glow: rgba(59, 130, 246, 0.35);
+            --border-color: #24282d;
+            --nav-bg: #0f1214;
+            --green: #10b981;
+            --red: #ef4444;
+            --orange: #f97316;
+            --gold: #fbbf24;
+            --chat-bg: #0a0c0e;
+            --chat-bubble-me: #1a2b3d;
+            --chat-bubble-them: #1a1d21;
+            --check-blue: #53bdeb;
+        }
+
+        html, body { height: 100%; overflow: hidden; }
+        body { background: var(--bg-color); color: var(--text-white); display: flex; flex-direction: column; -webkit-font-smoothing: antialiased; }
+
+        /* SPLASH */
+        #splashScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 99999; display: none; justify-content: center; align-items: center; flex-direction: column; gap: 24px; }
+        #splashScreen.active { display: flex; }
+        .splash-logo { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); box-shadow: 0 0 60px var(--accent-glow); animation: splashPulse 1.5s ease-in-out infinite; }
+        .splash-title { font-size: 28px; font-weight: 900; color: var(--accent); letter-spacing: 2px; }
+        .splash-spinner { width: 40px; height: 40px; border: 4px solid var(--border-color); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .splash-text { font-size: 13px; color: var(--text-gray); }
+        @keyframes splashPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* TOAST */
+        #toastContainer { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 99999; display: flex; flex-direction: column; gap: 10px; width: 90%; max-width: 400px; pointer-events: none; }
+        .toast { background: var(--surface-color); color: var(--text-white); padding: 14px 20px; border-radius: 14px; font-size: 14px; font-weight: 600; border: 1px solid var(--border-color); box-shadow: 0 8px 24px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 12px; animation: toastIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); pointer-events: auto; }
+        .toast.success { border-left: 4px solid var(--green); }
+        .toast.error { border-left: 4px solid var(--red); }
+        .toast.info { border-left: 4px solid var(--accent); }
+        .toast.hide { animation: toastOut 0.3s ease forwards; }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes toastOut { to { opacity: 0; transform: translateY(-20px); } }
+
+        /* PAGE */
+        .page { display: none; flex-direction: column; height: 100%; width: 100%; overflow-y: auto; animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+        .page.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+
+        /* TOMBOL BACK GLOBAL */
+        .btn-back-global {
+            position: fixed; top: 70px; left: 16px;
+            background: rgba(22, 25, 29, 0.95);
+            border: 1px solid var(--border-color);
+            color: var(--text-white);
+            width: 46px; height: 46px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            z-index: 9999;
+            justify-content: center; align-items: center;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+            pointer-events: auto;
+        }
+        .btn-back-global.show { display: flex; }
+        .btn-back-global:active { background: var(--accent); transform: scale(0.92); }
+        .btn-back-global svg { width: 24px; height: 24px; fill: var(--text-white); pointer-events: none; }
+
+        /* PRELOGIN */
+        header#mainHeader { display: flex; justify-content: space-between; align-items: center; padding: 24px; width: 100%; flex-shrink: 0; }
+        .brand { display: flex; align-items: center; gap: 14px; }
+        .brand-logo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); box-shadow: 0 0 20px var(--accent-glow); }
+        .brand-name { font-weight: 800; font-size: 20px; letter-spacing: 0.5px; }
+        .header-actions { display: none; gap: 10px; }
+        .btn-header { padding: 11px 22px; border-radius: 50px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; white-space: nowrap; border: none; }
+        .btn-login-header { background: transparent; color: var(--text-white); border: 1px solid var(--border-color); }
+        .btn-register-header { background: var(--accent); color: var(--text-white); box-shadow: 0 4px 14px var(--accent-glow); }
+
+        .content-center { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px 32px 150px; text-align: center; width: 100%; position: relative; }
+        .hero-logo { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin-bottom: 32px; box-shadow: 0 0 0 6px rgba(255,255,255,0.03), 0 0 40px var(--accent-glow); }
+        .hero-title { font-size: 38px; font-weight: 900; line-height: 1.15; margin-bottom: 20px; letter-spacing: -1.5px; }
+        .hero-title .highlight { color: var(--accent); }
+        .hero-subtitle { font-size: 16px; color: var(--text-gray); line-height: 1.6; margin: 0 0 22px; max-width: 400px; }
+        .hero-actions { position: static; display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 400px; z-index: 20; }
+        .contact-btn { background: var(--surface-color); color: var(--text-white); border: 1px solid var(--border-color); }
+        .hero-actions .btn-main { min-height: 56px; }
+        .hero-actions button { pointer-events: auto; }
+        .btn-main { width: 100%; padding: 18px 0; border-radius: 50px; font-size: 17px; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; justify-content: center; align-items: center; border: none; }
+        .btn-primary { background: var(--accent); color: var(--text-white); box-shadow: 0 6px 20px var(--accent-glow); }
+        .btn-primary:active { background: var(--accent-hover); transform: scale(0.97); }
+
+        .form-logo { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin-bottom: 24px; }
+        .form-title { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+        .form-subtitle { font-size: 14px; color: var(--text-gray); margin-bottom: 32px; }
+        .form-group { width: 100%; max-width: 400px; margin-bottom: 16px; text-align: left; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-gray); margin-bottom: 8px; margin-left: 4px; }
+        .form-input { width: 100%; padding: 18px 20px; border-radius: 16px; background: var(--surface-color); border: 1px solid var(--border-color); color: var(--text-white); font-size: 15px; outline: none; transition: all 0.2s; }
+        .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-glow); }
+        .form-input::placeholder { color: var(--text-dim); }
+        .form-footer { margin-top: 24px; font-size: 14px; color: var(--text-gray); }
+        .form-footer span { color: var(--accent); font-weight: 700; cursor: pointer; }
+
+        /* DASHBOARD */
+        #page-dashboard { background: var(--bg-color); overflow: hidden; position: relative; }
+        .app-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; flex-shrink: 0; }
+        .app-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+        .header-icons { display: flex; gap: 20px; align-items: center; }
+        .header-icons svg { width: 24px; height: 24px; fill: var(--text-white); cursor: pointer; }
+        .notif-badge { position: relative; cursor: pointer; }
+        .notif-badge::after { content: ''; position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; background: var(--red); border-radius: 50%; border: 2px solid var(--bg-color); }
+
+        .search-container { padding: 0 24px 16px 24px; flex-shrink: 0; display: none; }
+        .search-container.active { display: block; }
+        .search-bar { display: flex; align-items: center; background: var(--surface-color); border-radius: 30px; padding: 13px 20px; gap: 12px; border: 1px solid var(--border-color); }
+        .search-bar:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-glow); }
+        .search-bar svg { width: 20px; height: 20px; fill: var(--text-gray); flex-shrink: 0; }
+        .search-bar input { background: transparent; border: none; color: var(--text-white); font-size: 15px; width: 100%; outline: none; }
+
+        .main-content { flex: 1; overflow-y: auto; position: relative; padding-bottom: 90px; }
+        .main-content::-webkit-scrollbar { display: none; }
+        .tab-content { display: none; height: 100%; flex-direction: column; }
+        .tab-content.active { display: flex; }
+
+        /* CHAT LIST */
+        #tab-chat { justify-content: flex-start; align-items: stretch; padding: 0 0 20px 0; }
+        .empty-state { text-align: center; color: var(--text-gray); font-size: 15px; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 80px 40px; }
+        .empty-state svg { width: 70px; height: 70px; fill: var(--border-color); }
+        
+        .chat-item { display: flex; align-items: center; gap: 14px; padding: 14px 24px; cursor: pointer; transition: background 0.2s; border-bottom: 1px solid rgba(36, 40, 45, 0.5); position: relative; user-select: none; }
+        .chat-item:active { background: rgba(255,255,255,0.03); }
+        .chat-item.long-press { background: rgba(59, 130, 246, 0.15); }
+        .chat-avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--surface-color); display: flex; justify-content: center; align-items: center; overflow: hidden; flex-shrink: 0; border: 2px solid var(--border-color); position: relative; }
+        .chat-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .chat-avatar .unread-dot { position: absolute; top: -2px; right: -2px; width: 14px; height: 14px; background: var(--orange); border-radius: 50%; border: 2px solid var(--bg-color); display: none; }
+        .chat-avatar .unread-dot.show { display: block; }
+        .chat-info { flex: 1; text-align: left; min-width: 0; }
+        .chat-info h4 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+        .chat-info p { font-size: 13px; color: var(--text-gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chat-info p.unread { color: var(--text-white); font-weight: 600; }
+        .chat-time { font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
+
+        /* STATUS */
+        #tab-pembaruan { justify-content: flex-start; align-items: stretch; padding: 10px 24px; }
+        .section-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+        .status-item { display: flex; align-items: center; gap: 16px; width: 100%; padding: 12px 0; cursor: pointer; }
+        .status-avatar-container { position: relative; width: 54px; height: 54px; flex-shrink: 0; }
+        .status-avatar { width: 54px; height: 54px; border-radius: 50%; background: var(--surface-color); display: flex; justify-content: center; align-items: center; overflow: hidden; border: 3px solid var(--border-color); transition: border-color 0.3s; }
+        .status-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .status-avatar.unseen { border-color: var(--orange); }
+        .status-avatar.seen { border-color: var(--border-color); }
+        .status-plus { position: absolute; bottom: -2px; right: -2px; background: var(--accent); width: 22px; height: 22px; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 3px solid var(--bg-color); cursor: pointer; }
+        .status-plus svg { width: 12px; height: 12px; fill: white; }
+        .status-text h4 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+        .status-text p { font-size: 13px; color: var(--text-gray); }
+        .status-list-item { display: flex; align-items: center; gap: 14px; padding: 10px 0; cursor: pointer; }
+        .status-list-item .status-avatar-container { width: 50px; height: 50px; }
+        .status-list-item .status-avatar { width: 50px; height: 50px; border-width: 3px; }
+
+        /* PROFILE */
+        #tab-profile { justify-content: flex-start; align-items: center; padding: 30px 24px 100px 24px; }
+        .profile-pic-container { position: relative; margin-bottom: 20px; }
+        .profile-pic { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid var(--accent); background: var(--surface-color); box-shadow: 0 0 30px var(--accent-glow); }
+        .profile-pic-edit { position: absolute; bottom: 4px; right: 4px; background: var(--accent); width: 36px; height: 36px; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 3px solid var(--bg-color); cursor: pointer; }
+        .profile-pic-edit svg { width: 16px; height: 16px; fill: white; }
+        .profile-username { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+        .profile-joined { font-size: 13px; color: var(--text-gray); margin-bottom: 20px; }
+        .role-badge { display: inline-block; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 20px; }
+        .role-owner { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #000; }
+        .role-admin { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
+        .role-premium { background: linear-gradient(135deg, #a855f7, #7c3aed); color: #fff; }
+        .role-member { background: var(--surface-color); color: var(--text-gray); border: 1px solid var(--border-color); }
+        
+        .profile-info-card { width: 100%; max-width: 400px; background: var(--surface-color); border-radius: 16px; padding: 16px 20px; margin-bottom: 12px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .profile-info-card .label { font-size: 13px; color: var(--text-gray); }
+        .profile-info-card .value { font-size: 15px; font-weight: 600; }
+        .profile-info-card .value.id-badge { color: var(--accent); background: var(--accent-glow); padding: 4px 12px; border-radius: 20px; font-size: 13px; }
+        .profile-info-card .value.balance { color: var(--gold); }
+
+        .btn-save-profile { width: 100%; max-width: 400px; padding: 16px; border-radius: 50px; background: var(--accent); color: white; border: none; font-size: 15px; font-weight: 700; margin-top: 16px; cursor: pointer; box-shadow: 0 6px 20px var(--accent-glow); }
+        .btn-logout { width: 100%; max-width: 400px; padding: 16px; border-radius: 50px; background: transparent; color: var(--red); border: 1px solid var(--red); font-size: 15px; font-weight: 700; margin-top: 12px; cursor: pointer; }
+
+        /* INFORMASI */
+        #tab-informasi { justify-content: flex-start; align-items: stretch; padding: 20px 24px 100px 24px; }
+        .info-card { background: var(--surface-color); border-radius: 16px; padding: 20px; margin-bottom: 16px; border: 1px solid var(--border-color); }
+        .info-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; color: var(--accent); }
+        .info-card p { font-size: 14px; color: var(--text-gray); line-height: 1.6; }
+        .info-card .date { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+
+        /* FAB */
+        .fab { position: absolute; bottom: 100px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: var(--accent); display: flex; justify-content: center; align-items: center; box-shadow: 0 8px 24px var(--accent-glow); cursor: pointer; transition: transform 0.2s; border: none; z-index: 10; }
+        .fab:active { transform: scale(0.9); }
+        .fab svg { width: 26px; height: 26px; fill: white; }
+
+        /* BOTTOM NAV */
+        .bottom-nav { position: absolute; bottom: 0; left: 0; width: 100%; background: var(--nav-bg); display: flex; justify-content: space-around; align-items: center; padding: 10px 0 14px 0; border-top: 1px solid var(--border-color); z-index: 100; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-gray); font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; width: 65px; border: none; background: transparent; padding: 6px 0; }
+        .nav-item.active { color: var(--accent); }
+        .nav-item svg { width: 24px; height: 24px; fill: currentColor; }
+        .nav-item.active .nav-icon-bg { background: var(--accent-glow); padding: 6px 18px; border-radius: 20px; display: flex; justify-content: center; align-items: center; margin-bottom: 2px; }
+        .nav-icon-bg { display: flex; justify-content: center; align-items: center; transition: all 0.2s; }
+
+        /* SIDEBAR */
+        .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; display: none; backdrop-filter: blur(4px); }
+        .sidebar-overlay.active { display: block; }
+        .sidebar { position: fixed; top: 0; left: -300px; width: 280px; height: 100%; background: var(--nav-bg); z-index: 1001; transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; padding: 30px 0; border-right: 1px solid var(--border-color); }
+        .sidebar.active { left: 0; }
+        .sidebar-header { padding: 0 24px 20px 24px; border-bottom: 1px solid var(--border-color); margin-bottom: 10px; }
+        .sidebar-header h2 { font-size: 22px; font-weight: 800; color: var(--accent); }
+        .sidebar-header p { font-size: 12px; color: var(--text-gray); margin-top: 4px; }
+        .sidebar-item { display: flex; align-items: center; gap: 16px; padding: 16px 24px; color: var(--text-white); font-size: 15px; font-weight: 500; cursor: pointer; }
+        .sidebar-item:active { background: rgba(255,255,255,0.05); }
+        .sidebar-item svg { width: 22px; height: 22px; fill: var(--text-gray); }
+        .sidebar-item.crown svg { fill: var(--gold); }
+        .sidebar-item.crown span { color: var(--gold); font-weight: 700; }
+
+        /* PAGE HEADER */
+        .page-header { display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; background: var(--bg-color); }
+        .page-header .back-btn { background: var(--surface-color); border: 1px solid var(--border-color); color: var(--text-white); width: 44px; height: 44px; min-width: 44px; min-height: 44px; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+        .page-header .back-btn:active { background: var(--accent); transform: scale(0.92); }
+        .page-header .back-btn svg { width: 22px; height: 22px; fill: var(--text-white); pointer-events: none; display: block; }
+        .page-header h2 { font-size: 18px; font-weight: 700; }
+
+        /* ADD CONTACT */
+        #page-add-contact { background: var(--bg-color); padding: 0; }
+        .add-contact-body { padding: 20px 24px; flex: 1; overflow-y: auto; }
+        .add-contact-search { display: flex; align-items: center; background: var(--surface-color); border-radius: 16px; padding: 16px 20px; gap: 12px; border: 1px solid var(--border-color); margin-bottom: 20px; }
+        .add-contact-search svg { width: 22px; height: 22px; fill: var(--text-gray); flex-shrink: 0; }
+        .add-contact-search input { background: transparent; border: none; color: var(--text-white); font-size: 16px; width: 100%; outline: none; }
+        .user-result-item { display: flex; align-items: center; gap: 14px; padding: 14px 0; cursor: pointer; border-bottom: 1px solid rgba(36, 40, 45, 0.5); }
+        .user-result-avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); flex-shrink: 0; }
+        .user-result-info { flex: 1; }
+        .user-result-info h4 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+        .user-result-info p { font-size: 13px; color: var(--text-gray); }
+        .btn-add-contact { background: var(--accent); color: white; border: none; padding: 8px 18px; border-radius: 20px; font-size: 13px; font-weight: 700; cursor: pointer; }
+        .btn-add-contact.added { background: var(--green); }
+        .empty-result { text-align: center; padding: 40px 20px; color: var(--text-gray); }
+
+        /* CHAT ROOM - FIX TOTAL PAKAI BUTTON ASLI */
+        #page-chat-room { background: var(--chat-bg); padding: 0; position: relative; }
+        .chat-room-header { 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            padding: 10px 12px; 
+            background: var(--nav-bg); 
+            border-bottom: 1px solid var(--border-color); 
+            flex-shrink: 0; 
+            z-index: 100;
+            position: relative;
+        }
+        /* PAKAI BUTTON ASLI - bukan div */
+        .chat-room-header button.back-btn { 
+            background: var(--surface-color); 
+            border: 1px solid var(--border-color); 
+            width: 44px; 
+            height: 44px; 
+            min-width: 44px;
+            min-height: 44px;
+            border-radius: 50%; 
+            cursor: pointer; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            flex-shrink: 0; 
+            pointer-events: auto;
+            position: relative;
+            z-index: 9999;
+            -webkit-tap-highlight-color: rgba(59, 130, 246, 0.4);
+            user-select: none;
+            -webkit-user-select: none;
+            padding: 0;
+            outline: none;
+        }
+        .chat-room-header button.back-btn:active { 
+            background: var(--accent); 
+            transform: scale(0.92); 
+        }
+        .chat-room-header button.back-btn svg { 
+            width: 24px; 
+            height: 24px; 
+            fill: var(--text-white); 
+            pointer-events: none;
+            display: block;
+        }
+        .chat-room-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); flex-shrink: 0; }
+        .chat-room-info { flex: 1; min-width: 0; }
+        .chat-room-info h4 { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chat-room-info p { font-size: 12px; color: var(--text-gray); }
+        .chat-room-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; background: var(--chat-bg); }
+        
+        .bubble { max-width: 75%; padding: 8px 12px 6px 12px; border-radius: 12px; font-size: 14.5px; line-height: 1.4; position: relative; word-wrap: break-word; animation: slideIn 0.2s ease; }
+        .bubble.me { align-self: flex-end; background: var(--chat-bubble-me); border-top-right-radius: 4px; }
+        .bubble.them { align-self: flex-start; background: var(--chat-bubble-them); border-top-left-radius: 4px; }
+        .bubble-image { max-width: 100%; border-radius: 8px; margin-bottom: 4px; display: block; }
+        .bubble-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 2px; font-size: 11px; color: rgba(255,255,255,0.6); }
+        .bubble-meta .check { display: inline-flex; align-items: center; }
+        .bubble-meta .check svg { width: 16px; height: 16px; }
+        .bubble-meta .check.read svg { fill: var(--check-blue); }
+        .bubble-meta .check.delivered svg { fill: rgba(255,255,255,0.7); }
+        .bubble-meta .check.sent svg { fill: rgba(255,255,255,0.7); }
+        
+        .chat-room-input { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--nav-bg); border-top: 1px solid var(--border-color); flex-shrink: 0; }
+        .chat-room-input input[type="text"] { flex: 1; padding: 12px 16px; border-radius: 24px; background: var(--surface-color); border: none; color: var(--text-white); font-size: 15px; outline: none; }
+        .chat-room-input .icon-btn { background: transparent; border: none; color: var(--text-gray); cursor: pointer; padding: 8px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+        .chat-room-input .icon-btn svg { width: 24px; height: 24px; fill: currentColor; }
+        .chat-room-input .send-btn { background: var(--accent); color: white; border: none; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .chat-room-input .send-btn svg { width: 22px; height: 22px; fill: white; }
+
+        /* STATUS VIEW FULL SCREEN */
+        #page-status-view { background: #000; position: relative; }
+        .status-view-header { display: flex; align-items: center; gap: 12px; padding: 16px; position: relative; z-index: 10; }
+        .status-view-header .back-btn { background: rgba(255,255,255,0.1); border: none; color: white; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+        .status-view-header .back-btn svg { width: 24px; height: 24px; fill: white; pointer-events: none; }
+        .status-view-header .status-user-info { display: flex; align-items: center; gap: 12px; flex: 1; }
+        .status-view-header .status-user-info img { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.3); }
+        .status-view-header .status-user-info div h4 { font-size: 15px; font-weight: 600; color: white; }
+        .status-view-header .status-user-info div p { font-size: 12px; color: rgba(255,255,255,0.6); }
+        
+        .status-view-content { flex: 1; display: flex; justify-content: center; align-items: center; padding: 40px 32px; text-align: center; }
+        .status-view-content .status-full-text { font-size: 28px; font-weight: 700; line-height: 1.5; color: white; word-wrap: break-word; }
+        
+        .status-view-footer { padding: 20px 32px 40px 32px; text-align: center; }
+        .status-view-footer .status-time { font-size: 13px; color: rgba(255,255,255,0.5); }
+
+        /* UPGRADE */
+        #page-upgrade { background: var(--bg-color); padding: 0; }
+        .upgrade-body { padding: 20px 24px; flex: 1; overflow-y: auto; }
+        .balance-card { background: linear-gradient(135deg, var(--surface-color), var(--bg-color)); border-radius: 20px; padding: 24px; margin-bottom: 16px; border: 1px solid var(--gold); text-align: center; }
+        .balance-card .label { font-size: 13px; color: var(--text-gray); margin-bottom: 8px; }
+        .balance-card .amount { font-size: 32px; font-weight: 900; color: var(--gold); }
+        .balance-card .daily { font-size: 12px; color: var(--text-gray); margin-top: 8px; }
+        .btn-claim { width: 100%; padding: 14px; border-radius: 50px; background: var(--green); color: white; border: none; font-size: 15px; font-weight: 700; cursor: pointer; margin-bottom: 20px; box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35); }
+        .btn-claim:active { background: #059669; transform: scale(0.97); }
+        .btn-claim:disabled { background: var(--surface-color); color: var(--text-dim); box-shadow: none; cursor: not-allowed; }
+        .role-card { background: var(--surface-color); border-radius: 16px; padding: 20px; margin-bottom: 16px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        .role-card.owner { border-color: var(--gold); }
+        .role-card.admin { border-color: var(--red); }
+        .role-card.premium { border-color: #a855f7; }
+        .role-info h3 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+        .role-info p { font-size: 13px; color: var(--text-gray); }
+        .role-price { font-size: 20px; font-weight: 900; color: var(--gold); }
+        .upgrade-input-group { margin-bottom: 16px; }
+        .upgrade-input-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-gray); margin-bottom: 8px; }
+        .upgrade-input-group input { width: 100%; padding: 16px 20px; border-radius: 14px; background: var(--surface-color); border: 1px solid var(--border-color); color: var(--text-white); font-size: 15px; outline: none; }
+        .owner-give-box { display:none; margin-top:22px; padding:18px; border:1px solid #fbbf24; border-radius:16px; background:linear-gradient(180deg, rgba(251,191,36,.08), rgba(251,191,36,.02)); }
+        .owner-give-box.active { display:block; }
+        .owner-give-box h4 { margin:0 0 6px; color:#fbbf24; font-size:16px; }
+        .owner-give-box p { margin:0 0 14px; color:var(--text-gray); font-size:12px; line-height:1.5; }
+        .owner-give-box input { width:100%; box-sizing:border-box; padding:15px 16px; border-radius:13px; background:var(--surface-color); border:1px solid var(--border-color); color:var(--text-white); font-size:15px; outline:none; margin-bottom:12px; }
+        .give-role-grid { display:grid; grid-template-columns:1fr; gap:10px; }
+        .give-role-btn { border:0; border-radius:13px; padding:14px; font-weight:800; font-size:14px; cursor:pointer; color:#fff; }
+        .give-role-btn.premium { background:#7c3aed; }
+        .give-role-btn.admin { background:#ef4444; }
+        .give-role-btn.owner { background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#000; }
+
+        .rules-box { background: var(--surface-color); border-radius: 14px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border-color); }
+        .rules-box h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; color: var(--accent); }
+        .rules-box ul { list-style: none; font-size: 13px; color: var(--text-gray); line-height: 1.8; }
+        .rules-box ul li::before { content: '• '; color: var(--accent); font-weight: 700; }
+
+        .realtime-banner { position: fixed; top: 76px; left: 50%; transform: translateX(-50%) translateY(-16px); width: calc(100% - 32px); max-width: 520px; background: linear-gradient(135deg, #171a20, #20242c); border: 1px solid rgba(59,130,246,.55); border-left: 4px solid var(--accent); border-radius: 16px; padding: 14px 16px; z-index: 99998; box-shadow: 0 14px 40px rgba(0,0,0,.55), 0 0 24px rgba(59,130,246,.15); opacity: 0; pointer-events: none; transition: opacity .25s ease, transform .25s ease; }
+        .realtime-banner.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+        .realtime-banner .banner-title { font-size: 14px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+        .realtime-banner .banner-text { font-size: 13px; color: var(--text-gray); line-height: 1.45; }
+        .realtime-banner .banner-text strong { color: var(--text-white); }
+        .announcement-item { padding: 14px; border-radius: 14px; background: rgba(59,130,246,.07); border: 1px solid var(--border-color); margin-bottom: 10px; }
+        .announcement-item h4 { font-size: 14px; margin-bottom: 5px; color: var(--text-white); }
+        .announcement-item p { font-size: 13px; color: var(--text-gray); line-height: 1.5; white-space: pre-wrap; }
+        .announcement-item small { display:block; margin-top:8px; color:#777; font-size:11px; }
+        .announcement-compose textarea { min-height: 140px; }
+
+        /* MODAL */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 2000; display: none; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(6px); }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: var(--surface-color); border-radius: 20px; width: 100%; max-width: 400px; padding: 24px; border: 1px solid var(--border-color); animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); max-height: 85vh; overflow-y: auto; }
+        .modal-content h3 { font-size: 18px; font-weight: 700; margin-bottom: 16px; text-align: center; }
+        .modal-content textarea { width: 100%; height: 120px; padding: 14px; border-radius: 12px; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-white); font-size: 14px; resize: none; outline: none; margin-bottom: 16px; }
+        .modal-actions { display: flex; gap: 10px; }
+        .modal-btn { flex: 1; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; border: none; }
+        .modal-btn.cancel { background: var(--border-color); color: var(--text-white); }
+        .modal-btn.save { background: var(--accent); color: white; }
+        .modal-btn.danger { background: var(--red); color: white; }
+        .modal-btn.gold { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #000; font-weight: 800; }
+
+        .notif-item { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 12px; margin-bottom: 8px; background: rgba(59, 130, 246, 0.08); }
+        .notif-item .notif-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); }
+        .notif-item .notif-info { flex: 1; }
+        .notif-item .notif-info h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+        .notif-item .notif-info p { font-size: 12px; color: var(--text-gray); }
+        .notif-item .notif-action { background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; cursor: pointer; }
+
+        .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+        .calc-btn { padding: 18px 0; border-radius: 12px; font-size: 18px; font-weight: 600; border: none; cursor: pointer; background: var(--bg-color); color: var(--text-white); }
+        .calc-btn.op { background: var(--accent); color: white; }
+        .calc-btn.equal { background: var(--green); color: white; }
+        .calc-display { width: 100%; padding: 20px; border-radius: 12px; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-white); font-size: 24px; text-align: right; margin-bottom: 16px; outline: none; }
+
+        .ttt-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 20px 0; }
+        .ttt-cell { aspect-ratio: 1; background: var(--bg-color); border: 2px solid var(--border-color); border-radius: 12px; display: flex; justify-content: center; align-items: center; font-size: 40px; font-weight: 800; cursor: pointer; color: var(--text-white); }
+        .ttt-cell.x { color: var(--accent); }
+        .ttt-cell.o { color: var(--orange); }
+        .ttt-status { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--text-gray); text-align: center; }
+        .ttt-mode { display: flex; gap: 8px; margin-bottom: 16px; }
+        .ttt-mode button { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--border-color); background: transparent; color: var(--text-gray); font-weight: 700; cursor: pointer; }
+        .ttt-mode button.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+        .music-result { display: flex; gap: 12px; padding: 12px; border-radius: 12px; background: var(--bg-color); margin-bottom: 10px; text-align: left; align-items: center; }
+        .music-result img { width: 80px; height: 60px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+        .music-result-info { flex: 1; overflow: hidden; }
+        .music-result-info h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .music-result-info p { font-size: 12px; color: var(--text-gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .music-result-info button { margin-top: 6px; background: var(--accent); color: white; border: none; padding: 6px 14px; border-radius: 16px; font-size: 12px; font-weight: 700; cursor: pointer; }
+        #youtubePlayer { width: 100%; aspect-ratio: 16/9; border-radius: 12px; margin-bottom: 16px; border: none; }
+
+        .prayer-list { text-align: left; }
+        .prayer-item { display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border-color); }
+        .prayer-item .name { font-size: 15px; font-weight: 600; }
+        .prayer-item .time { font-size: 15px; color: var(--accent); font-weight: 700; }
+
+        .loading { text-align: center; padding: 30px; color: var(--text-gray); }
+        .spinner { width: 40px; height: 40px; border: 4px solid var(--border-color); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+    </style>
+</head>
+<body>
+
+    <div id="splashScreen">
+        <img src="https://files.catbox.moe/h8cnec.jpg" class="splash-logo">
+        <div class="splash-title">FLOWX</div>
+        <div class="splash-spinner"></div>
+        <div class="splash-text">Memuat data...</div>
+    </div>
+
+    <div id="toastContainer"></div>
+    <div id="realtimeBanner" class="realtime-banner" aria-live="polite">
+        <div class="banner-title" id="realtimeBannerTitle">FLOWX</div>
+        <div class="banner-text" id="realtimeBannerText"></div>
+    </div>
+
+    <button class="btn-back-global" id="btnBackGlobal" onclick="handleBackGlobal()">
+        <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/></svg>
+    </button>
+
+    <!-- PRELOGIN -->
+    <div class="page active" id="page-home">
+        <header id="mainHeader">
+            <div class="brand">
+                <img src="https://files.catbox.moe/h8cnec.jpg" class="brand-logo">
+                <span class="brand-name">FLOWX</span>
+            </div>
+            <div class="header-actions">
+                <button class="btn-header btn-login-header" onclick="showPage('login')">Masuk</button>
+                <button class="btn-header btn-register-header" onclick="showPage('register')">Daftar Gratis</button>
+            </div>
+        </header>
+        <div class="content-center">
+            <img src="https://files.catbox.moe/h8cnec.jpg" class="hero-logo">
+            <h1 class="hero-title">Chat tanpa batas.<br><span class="highlight">Bebas nomor.</span></h1>
+            <p class="hero-subtitle">FLOWX menghubungkan kamu dengan siapa saja hanya dengan username — real-time, aman, dan bersih.</p>
+            <div class="hero-actions">
+                <button class="btn-main btn-primary" onclick="showPage('login')">SIGN IN</button>
+                <button class="btn-main contact-btn" onclick="openContact()">CONTACT</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="page" id="page-login">
+        <div class="content-center">
+            <img src="https://files.catbox.moe/h8cnec.jpg" class="form-logo">
+            <h2 class="form-title">Selamat Datang</h2>
+            <p class="form-subtitle">Masuk untuk mulai mengobrol</p>
+            <div class="form-group"><label>Username</label><input type="text" class="form-input" id="loginUsername" placeholder="Masukkan username"></div>
+            <div class="form-group"><label>Password</label><input type="password" class="form-input" id="loginPassword" placeholder="Masukkan password" onkeypress="if(event.key==='Enter') handleLogin()"></div>
+            <button class="btn-main btn-primary" style="max-width:400px;" onclick="handleLogin()">Masuk</button>
+            <p class="form-footer">Belum punya akun? <span onclick="showPage('register')">Daftar di sini</span></p>
+        </div>
+    </div>
+
+    <!-- REGISTER -->
+    <div class="page" id="page-register">
+        <div class="content-center">
+            <img src="https://files.catbox.moe/h8cnec.jpg" class="form-logo">
+            <h2 class="form-title">Buat Akun</h2>
+            <p class="form-subtitle">Gabung dan mulai chat tanpa nomor</p>
+            <div class="form-group"><label>Username</label><input type="text" class="form-input" id="regUsername" placeholder="Pilih username unik" autocomplete="username"></div>
+            <div class="form-group"><label>Password</label><input type="password" class="form-input" id="regPassword" placeholder="Buat password"></div>
+            <div class="form-group"><label>Konfirmasi Password</label><input type="password" class="form-input" id="regConfirm" placeholder="Ulangi password" onkeypress="if(event.key==='Enter') handleRegister()"></div>
+            <button class="btn-main btn-primary" style="max-width:400px;" onclick="handleRegister()">Daftar Gratis</button>
+            <p class="form-footer">Sudah punya akun? <span onclick="showPage('login')">Masuk di sini</span></p>
+        </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="page" id="page-dashboard">
+        <header class="app-header">
+            <div class="app-title">FLOWX</div>
+            <div class="header-icons">
+                <div class="notif-badge" id="notifBadge" style="display:none;" onclick="showNotifications()">
+                    <svg viewBox="0 0 24 24"><path d="M12,22A2,2 0 0,0 14,20H10A2,2 0 0,0 12,22M18,16V11C18,7.93 16.36,5.36 13.5,4.68V4A1.5,1.5 0 0,0 12,2.5A1.5,1.5 0 0,0 10.5,4V4.68C7.63,5.36 6,7.92 6,11V16L4,18V19H20V18L18,16Z"/></svg>
+                </div>
+                <svg id="sidebarToggle" viewBox="0 0 24 24" style="cursor:pointer;" onclick="toggleSidebar()"><path d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"/></svg>
+            </div>
+        </header>
+
+        <div class="search-container active" id="searchContainer">
+            <div class="search-bar">
+                <svg viewBox="0 0 24 24"><path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/></svg>
+                <input type="text" id="searchInput" placeholder="Tanya atau Cari" oninput="handleSearch()">
+            </div>
+        </div>
+
+        <main class="main-content" id="mainContent">
+            <div class="tab-content active" id="tab-chat">
+                <div id="notifContainer"></div>
+                <div id="chatListContainer" style="width:100%;"></div>
+                <div class="empty-state" id="chatEmptyState">
+                    <svg viewBox="0 0 24 24"><path d="M20,2H4A2,2 0 0,0 2,4V22L6,18H20A2,2 0 0,0 22,16V4C22,2.89 21.1,2 20,2Z"/></svg>
+                    <p>Anda tidak memiliki kontak yang dibuat</p>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-pembaruan">
+                <div class="section-title">Status</div>
+                <div class="status-item" id="myStatusItem">
+                    <div class="status-avatar-container">
+                        <div class="status-avatar unseen" id="myStatusAvatar"><img src="https://files.catbox.moe/h8cnec.jpg" id="myStatusImg"></div>
+                        <div class="status-plus" onclick="event.stopPropagation(); openModal('statusModal')"><svg viewBox="0 0 24 24"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg></div>
+                    </div>
+                    <div class="status-text"><h4>Status saya</h4><p id="myStatusText">Ketuk untuk menambahkan pembaruan status</p></div>
+                </div>
+                <div class="section-title" style="margin-top:20px;">Pembaruan Terbaru</div>
+                <div id="statusListContainer"></div>
+            </div>
+
+            <div class="tab-content" id="tab-profile">
+                <div class="profile-pic-container">
+                    <img src="https://files.catbox.moe/h8cnec.jpg" class="profile-pic" id="profilePic">
+                    <div class="profile-pic-edit" onclick="document.getElementById('profilePicInput').click()"><svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"/></svg></div>
+                    <input type="file" id="profilePicInput" accept="image/*" style="display:none;" onchange="handleProfilePicChange(event)">
+                </div>
+                <div class="profile-username" id="profileUsername">@username</div>
+                <div id="profileRoleBadge" class="role-badge role-member">MEMBER</div>
+                <div class="profile-joined" id="profileJoined">Bergabung: -</div>
+                <div class="profile-info-card"><span class="label">ID Pengguna</span><span class="value id-badge" id="profileId">#0</span></div>
+                <div class="profile-info-card"><span class="label">Saldo</span><span class="value balance" id="profileBalance">Rp 0</span></div>
+                <button class="btn-save-profile" onclick="saveProfile()">Simpan Perubahan</button>
+                <button class="btn-logout" onclick="handleLogout()">Keluar Akun</button>
+            </div>
+
+            <div class="tab-content" id="tab-informasi">
+                <div class="section-title" style="margin-bottom:16px;">Update Terbaru FLOWX</div>
+                <div class="info-card"><h3>v7.0.0 - Update Besar 🚀</h3><p>Tombol back FIX total pakai button asli, foto profil realtime, status full screen, splash login, saldo manual, owner dapat 1 juta instan.</p><div class="date">27 September 2026</div></div>
+            </div>
+        </main>
+
+        <button class="fab" id="fabBtn" onclick="openAddContactPage()"><svg viewBox="0 0 24 24"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg></button>
+
+        <nav class="bottom-nav">
+            <button class="nav-item active" onclick="switchTab('chat', this)"><div class="nav-icon-bg"><svg viewBox="0 0 24 24"><path d="M20,2H4A2,2 0 0,0 2,4V22L6,18H20A2,2 0 0,0 22,16V4C22,2.89 21.1,2 20,2Z"/></svg></div><span>Chat</span></button>
+            <button class="nav-item" onclick="switchTab('pembaruan', this)"><div class="nav-icon-bg"><svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/></svg></div><span>Pembaruan</span></button>
+            <button class="nav-item" onclick="switchTab('profile', this)"><div class="nav-icon-bg"><svg viewBox="0 0 24 24"><path d="M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z"/></svg></div><span>Profile</span></button>
+            <button class="nav-item" onclick="switchTab('informasi', this)"><div class="nav-icon-bg"><svg viewBox="0 0 24 24"><path d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z"/></svg></div><span>Informasi</span></button>
+        </nav>
+    </div>
+
+    <!-- ADD CONTACT -->
+    <div class="page" id="page-add-contact">
+        <div class="page-header">
+            <button class="back-btn" type="button" onclick="backToDashboard()"><svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/></svg></button>
+            <h2>Tambah Kontak</h2>
+        </div>
+        <div class="add-contact-body">
+            <div class="add-contact-search">
+                <svg viewBox="0 0 24 24"><path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/></svg>
+                <input type="text" id="addContactSearch" placeholder="Ketik username..." oninput="searchUsers()">
+            </div>
+            <div id="userResultsContainer"><div class="empty-result"><p>Memuat data pengguna...</p></div></div>
+        </div>
+    </div>
+
+    <!-- CHAT ROOM - FIX TOTAL PAKAI BUTTON ASLI -->
+    <div class="page" id="page-chat-room">
+        <div class="chat-room-header">
+            <button class="back-btn" type="button" onclick="handleChatBack(event); return false;" id="chatBackBtn">
+                <svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/></svg>
+            </button>
+            <img src="https://files.catbox.moe/h8cnec.jpg" class="chat-room-avatar" id="chatRoomAvatar">
+            <div class="chat-room-info">
+                <h4 id="chatRoomName">@username</h4>
+                <p id="chatRoomStatus">online</p>
+            </div>
+        </div>
+        <div class="chat-room-messages" id="chatRoomMessages"></div>
+        <div class="chat-room-input">
+            <button class="icon-btn" type="button" onclick="document.getElementById('chatImageInput').click()"><svg viewBox="0 0 24 24"><path d="M8.5,13.5L11,16.5L14.5,12L19,18H5M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19Z"/></svg></button>
+            <input type="file" id="chatImageInput" accept="image/*" style="display:none;" onchange="sendImage(event)">
+            <input type="text" id="chatMessageInput" placeholder="Ketik pesan" onkeypress="if(event.key==='Enter') sendMessage()">
+            <button class="send-btn" type="button" onclick="sendMessage()"><svg viewBox="0 0 24 24"><path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/></svg></button>
+        </div>
+    </div>
+
+    <!-- STATUS VIEW FULL SCREEN -->
+    <div class="page" id="page-status-view">
+        <div class="status-view-header">
+            <button class="back-btn" type="button" onclick="closeStatusView()"><svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/></svg></button>
+            <div class="status-user-info">
+                <img id="statusViewAvatar" src="https://files.catbox.moe/h8cnec.jpg">
+                <div>
+                    <h4 id="statusViewUsername">@username</h4>
+                    <p id="statusViewTime">Baru saja</p>
+                </div>
+            </div>
+        </div>
+        <div class="status-view-content">
+            <div class="status-full-text" id="statusViewText"></div>
+        </div>
+        <div class="status-view-footer">
+            <div class="status-time" id="statusViewTimeBottom"></div>
+        </div>
+    </div>
+
+    <!-- UPGRADE -->
+    <div class="page" id="page-upgrade">
+        <div class="page-header">
+            <button class="back-btn" type="button" onclick="backToDashboard()"><svg viewBox="0 0 24 24"><path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/></svg></button>
+            <h2>Upgrade Role</h2>
+        </div>
+        <div class="upgrade-body">
+            <div class="balance-card">
+                <div class="label">Saldo Kamu</div>
+                <div class="amount" id="upgradeBalance">Rp 0</div>
+                <div class="daily">Klaim manual Rp 1.000 / hari</div>
+            </div>
+            <button class="btn-claim" id="btnClaim" type="button" onclick="claimDailyReward()">Klaim Saldo Harian (+Rp 1.000)</button>
+            <div class="rules-box">
+                <h4>Aturan Upgrade</h4>
+                <ul>
+                    <li>Masukkan username kamu dulu</li>
+                    <li>Pilih role yang mau dibeli</li>
+                    <li>Saldo otomatis terpotong</li>
+                    <li>Role langsung ter-upgrade</li>
+                </ul>
+            </div>
+            <div class="upgrade-input-group">
+                <label>Username Kamu</label>
+                <input type="text" id="upgradeUsername" placeholder="Masukkan username">
+            </div>
+            <div class="owner-give-box" id="ownerGiveBox">
+                <h4>OWNER • GIVE ROLE</h4>
+                <p>Fitur khusus Owner. Berikan role ke username lain tanpa memotong saldo Owner.</p>
+                <input type="text" id="giveRoleUsername" placeholder="Username penerima">
+                <div class="give-role-grid">
+                    <button class="give-role-btn premium" type="button" onclick="giveRole('premium')">Give Premium</button>
+                    <button class="give-role-btn admin" type="button" onclick="giveRole('admin')">Give Admin</button>
+                    <button class="give-role-btn owner" type="button" onclick="giveRole('owner')">Give Owner</button>
+                </div>
+            </div>
+            <div class="role-card premium"><div class="role-info"><h3 style="color:#a855f7;">PREMIUM</h3><p>Akses fitur premium</p></div><div class="role-price">Rp 2.500</div></div>
+            <button class="btn-main btn-primary" style="margin-bottom:16px;" type="button" onclick="buyRole('premium', 2500)">Beli Premium</button>
+            <div class="role-card admin"><div class="role-info"><h3 style="color:#ef4444;">ADMIN</h3><p>Akses admin panel</p></div><div class="role-price">Rp 5.000</div></div>
+            <button class="btn-main btn-primary" style="margin-bottom:16px; background: #ef4444;" type="button" onclick="buyRole('admin', 5000)">Beli Admin</button>
+            <div class="role-card owner"><div class="role-info"><h3 style="color:#fbbf24;">OWNER</h3><p>Akses penuh FLOWX</p></div><div class="role-price">Rp 10.000</div></div>
+            <button class="btn-main btn-primary" style="background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #000;" type="button" onclick="buyRole('owner', 10000)">Beli Owner</button>
+        </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header"><h2>FLOWX Tools</h2><p>Fitur tambahan buat kamu</p></div>
+        <div class="sidebar-item crown" onclick="openUpgradePage()"><svg viewBox="0 0 24 24"><path d="M5 16L3 5L8.5 10L12 4L15.5 10L21 5L19 16H5M19 19C19 19.6 18.6 20 18 20H6C5.4 20 5 19.6 5 19V18H19V19Z"/></svg><span>Upgrade Role</span></div>
+        <div class="sidebar-item crown" id="ownerAnnouncementItem" style="display:none;" onclick="openAnnouncementManager()"><svg viewBox="0 0 24 24"><path d="M4,4H20V18H7L4,21V4M7,7V9H17V7H7M7,11V13H17V11H7M7,15V17H14V15H7Z"/></svg><span>Announcement</span></div>
+        <div class="sidebar-item" onclick="openTool('music')"><svg viewBox="0 0 24 24"><path d="M12,3V13.55C11.41,13.21 10.73,13 10,13A3,3 0 0,0 7,16A3,3 0 0,0 10,19A3,3 0 0,0 13,16V7H17V5H12V3Z"/></svg><span>Search Music</span></div>
+        <div class="sidebar-item" onclick="openTool('tictactoe')"><svg viewBox="0 0 24 24"><path d="M4,4H20V20H4V4M6,6V18H18V6H6M8,8H10V10H8V8M14,8H16V10H14V8M8,12H10V14H8V12M14,12H16V14H14V12M8,16H10V18H8V16M14,16H16V18H14V16Z"/></svg><span>Tic Tac Toe</span></div>
+        <div class="sidebar-item" onclick="openTool('calculator')"><svg viewBox="0 0 24 24"><path d="M6,2H18A2,2 0 0,1 20,4V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2M6,4V8H18V4H6M6,10V12H8V10H6M10,10V12H12V10H10M14,10V12H16V10H14M6,14V16H8V14H6M10,14V16H12V14H10M14,14V16H16V14H14M6,18V20H8V18H6M10,18V20H12V18H10M14,18V20H16V18H14Z"/></svg><span>Kalkulator</span></div>
+        <div class="sidebar-item" onclick="openTool('prayer')"><svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/></svg><span>Jadwal Sholat</span></div>
+    </div>
+
+    <!-- CONTACT MODAL -->
+    <div class="modal-overlay" id="contactModal"><div class="modal-content" style="text-align:center;">
+        <h3>CONTACT</h3>
+        <p style="color:var(--text-gray);font-size:14px;line-height:1.7;margin-bottom:20px;">Hubungi tim FLOWX untuk bantuan, laporan masalah, atau pertanyaan seputar aplikasi.</p>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+            <a href="mailto:flowx.contact@gmail.com" class="modal-btn save" style="display:block;text-decoration:none;">Email FLOWX</a>
+            <button class="modal-btn cancel" type="button" onclick="closeModal('contactModal')">Tutup</button>
+        </div>
+    </div></div>
+
+    <div class="modal-overlay" id="announcementModal"><div class="modal-content">
+        <h3>Announcement Owner</h3>
+        <p style="text-align:center;color:var(--text-gray);font-size:13px;line-height:1.5;margin-bottom:16px;">Kirim informasi ke seluruh pengguna FLOWX secara realtime.</p>
+        <div class="announcement-compose">
+            <textarea id="announcementInput" placeholder="Tulis pengumuman untuk semua pengguna..."></textarea>
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn cancel" type="button" onclick="closeModal('announcementModal')">Batal</button>
+            <button class="modal-btn save" type="button" onclick="sendGlobalAnnouncement()">Kirim</button>
+        </div>
+        <div style="margin-top:20px;border-top:1px solid var(--border-color);padding-top:16px;">
+            <h4 style="font-size:14px;margin-bottom:12px;">Riwayat Announcement</h4>
+            <div id="announcementHistory" style="max-height:220px;overflow-y:auto;"></div>
+        </div>
+    </div></div>
+    <!-- MODALS -->
+    <div class="modal-overlay" id="statusModal"><div class="modal-content"><h3>Buat Status Baru</h3><textarea id="statusInput" placeholder="Apa yang kamu pikirkan?"></textarea><div class="modal-actions"><button class="modal-btn cancel" type="button" onclick="closeModal('statusModal')">Batal</button><button class="modal-btn save" type="button" onclick="saveStatus()">Posting</button></div></div></div>
+    <div class="modal-overlay" id="viewProfileModal"><div class="modal-content" style="text-align:center;"><img id="viewProfileAvatar" src="https://files.catbox.moe/h8cnec.jpg" style="width:90px;height:90px;border-radius:50%;object-fit:cover;border:4px solid var(--accent);margin-bottom:16px;"><h3 id="viewProfileUsername"></h3><p id="viewProfileJoined" style="font-size:13px;color:var(--text-gray);margin-bottom:20px;"></p><div class="profile-info-card"><span class="label">ID Pengguna</span><span class="value id-badge" id="viewProfileId">#0</span></div><div class="modal-actions" style="margin-top:16px; flex-wrap:wrap;"><button class="modal-btn cancel" type="button" onclick="closeModal('viewProfileModal')">Tutup</button><button class="modal-btn danger" id="viewProfileBlockBtn" type="button" onclick="blockUserFromProfile()">Blokir</button><button class="modal-btn save" id="viewProfileAddBtn" type="button" onclick="addContactFromProfile()">Tambah</button></div></div></div>
+    <div class="modal-overlay" id="chatOptionsModal"><div class="modal-content"><h3>Opsi Chat</h3><p id="chatOptionsName" style="text-align:center;color:var(--text-gray);margin-bottom:20px;font-size:14px;"></p><div class="modal-actions" style="flex-direction:column;gap:10px;"><button class="modal-btn danger" type="button" onclick="confirmDeleteChat()">Hapus Chat</button><button class="modal-btn cancel" type="button" onclick="confirmBlockFromChat()">Blokir User</button><button class="modal-btn cancel" type="button" onclick="closeModal('chatOptionsModal')">Batal</button></div></div></div>
+    <div class="modal-overlay" id="confirmModal"><div class="modal-content"><h3 id="confirmTitle">Konfirmasi</h3><p id="confirmMessage" style="text-align:center;color:var(--text-gray);margin-bottom:20px;font-size:14px;"></p><div class="modal-actions"><button class="modal-btn cancel" type="button" onclick="closeModal('confirmModal')">Batal</button><button class="modal-btn danger" id="confirmExecuteBtn" type="button" onclick="executeConfirm()">Ya, Lanjutkan</button></div></div></div>
+    <div class="modal-overlay" id="notifModal"><div class="modal-content"><h3>Notifikasi</h3><div id="notifListContainer" style="max-height:400px;overflow-y:auto;"></div><div class="modal-actions" style="margin-top:16px;"><button class="modal-btn cancel" type="button" onclick="closeModal('notifModal')">Tutup</button></div></div></div>
+    <div class="modal-overlay" id="toolModal"><div class="modal-content" id="toolModalContent"></div></div>
+    <div class="modal-overlay" id="roleSuccessModal"><div class="modal-content" style="text-align:center;"><div style="font-size:60px;margin-bottom:16px;">👑</div><h3 id="roleSuccessText" style="color:var(--gold);">Selamat!</h3><p id="roleSuccessSub" style="color:var(--text-gray);margin-bottom:20px;"></p><div class="modal-actions"><button class="modal-btn gold" type="button" onclick="closeModal('roleSuccessModal')">OK</button></div></div></div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCx7pjTtAwSq7IwWnK5RVDXzncWiKIu7xI",
+            authDomain: "flow-df7c5.firebaseapp.com",
+            databaseURL: "https://flow-df7c5-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "flow-df7c5",
+            storageBucket: "flow-df7c5.firebasestorage.app",
+            messagingSenderId: "649246483377",
+            appId: "1:649246483377:web:c4220d4cb5adb2a9649390"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let currentUser = null;
+        let userContacts = [];
+        let userBlocked = [];
+        let allUsers = {};
+        let allUsersCache = {};
+        let allStatuses = {};
+        let searchQuery = "";
+        let profilePicTemp = null;
+        let selectedUserToAdd = null;
+        let selectedChatUid = null;
+        let confirmCallback = null;
+        let youtubeAPIKey = "AIzaSyCPJfHh86XUd0I4jXDWsic6cs0GCuZEL4w";
+        let currentChatUid = null;
+        let longPressTimer = null;
+        let isLongPress = false;
+        let chatMessagesListener = null;
+        let profileListener = null;
+        let tttBoard = ['', '', '', '', '', '', '', '', ''];
+        let tttCurrent = 'X';
+        let tttGameOver = false;
+        let tttMode = 'ai';
+        let calcValue = '';
+        let swipeStartX = 0;
+        let notificationKeys = new Set();
+        let notificationInitialLoad = true;
+        let announcementKeys = new Set();
+        let announcementInitialLoad = true;
+        let announcementBannerTimer = null;
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast ' + type;
+            let icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+            toast.innerHTML = `<span style="font-size:18px;">${icon}</span><span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.add('hide'); setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        function openContact() { openModal('contactModal'); }
+
+        function showConfirm(title, message, callback) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            confirmCallback = callback;
+            openModal('confirmModal');
+        }
+        function executeConfirm() {
+            const callback = confirmCallback;
+            confirmCallback = null;
+            closeModal('confirmModal');
+            if (typeof callback === 'function') {
+                try {
+                    const result = callback();
+                    if (result && typeof result.catch === 'function') result.catch(err => showToast('Gagal: ' + err.message, 'error'));
+                } catch (err) {
+                    showToast('Gagal: ' + err.message, 'error');
+                }
+            }
+        }
+
+        // NAVIGASI
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            const target = document.getElementById('page-' + pageId);
+            if (target) target.classList.add('active');
+            const btnBackGlobal = document.getElementById('btnBackGlobal');
+            if (pageId === 'login' || pageId === 'register') btnBackGlobal.classList.add('show');
+            else btnBackGlobal.classList.remove('show');
+            if (pageId === 'dashboard') switchTab('chat', document.querySelector('.nav-item'));
+            if (pageId === 'upgrade') updateUpgradeBalance();
+        }
+        function handleBackGlobal() {
+            const activePage = document.querySelector('.page.active');
+            if (activePage && (activePage.id === 'page-login' || activePage.id === 'page-register')) showPage('home');
+        }
+        function backToDashboard() { showPage('dashboard'); }
+
+        window.addEventListener('popstate', function() {
+            const activePage = document.querySelector('.page.active');
+            if (activePage && activePage.id === 'page-chat-room') closeChatRoom(true);
+            else if (activePage && (activePage.id === 'page-add-contact' || activePage.id === 'page-upgrade')) backToDashboard();
+            else if (activePage && (activePage.id === 'page-login' || activePage.id === 'page-register')) showPage('home');
+            else if (activePage && activePage.id === 'page-status-view') closeStatusView();
+        });
+
+        // SWIPE BACK
+        document.addEventListener('touchstart', function(e) { swipeStartX = e.touches[0].clientX; }, { passive: true });
+        document.addEventListener('touchend', function(e) {
+            const diff = e.changedTouches[0].clientX - swipeStartX;
+            const activePage = document.querySelector('.page.active');
+            if (diff > 80 && swipeStartX < 50) {
+                if (activePage && activePage.id === 'page-chat-room') closeChatRoom(false);
+                else if (activePage && (activePage.id === 'page-add-contact' || activePage.id === 'page-upgrade')) backToDashboard();
+                else if (activePage && activePage.id === 'page-status-view') closeStatusView();
+            }
+        }, { passive: true });
+
+        // LOGIN dengan SPLASH ANIMASI
+        function normalizeUsername(value) { return String(value || '').trim().toLowerCase(); }
+
+        // LOGIN - pencarian username tidak lagi gagal hanya karena perbedaan huruf besar/kecil
+        function handleLogin() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            if (!username || !password) { showToast('Isi semua field!', 'error'); return; }
+
+            db.ref('users').once('value').then(snapshot => {
+                let foundUser = null;
+                snapshot.forEach(child => {
+                    const data = child.val() || {};
+                    if (!foundUser && normalizeUsername(data.username) === normalizeUsername(username)) {
+                        foundUser = { uid: child.key, ...data };
+                    }
+                });
+                if (!foundUser) { showToast('Username tidak ditemukan!', 'error'); return; }
+                if (String(foundUser.password || '') !== password) { showToast('Password salah!', 'error'); return; }
+
+                document.getElementById('splashScreen').classList.add('active');
+                setTimeout(() => {
+                    document.getElementById('splashScreen').classList.remove('active');
+                    currentUser = foundUser;
+                    if (currentUser.username === 'Fadli' || currentUser.username === 'FLOWX') {
+                        if (currentUser.role !== 'owner') {
+                            currentUser.role = 'owner';
+                            currentUser.balance = (currentUser.balance || 0) + 1000000;
+                            db.ref('users/' + currentUser.uid).update({ role: 'owner', balance: currentUser.balance });
+                        }
+                    }
+                    localStorage.setItem('flowx_user', JSON.stringify(currentUser));
+                    initDashboard();
+                    showPage('dashboard');
+                    showToast('Login berhasil • Selamat datang, ' + currentUser.username + '!', 'success');
+                }, 1200);
+            }).catch(err => showToast('Gagal login: ' + err.message, 'error'));
+        }
+
+        // KLAIM SALDO MANUAL
+        function claimDailyReward() {
+            if (!currentUser) return;
+            const today = new Date().toDateString();
+            const lastClaim = currentUser.lastClaim ? new Date(currentUser.lastClaim).toDateString() : null;
+            if (lastClaim === today) { showToast('Udah klaim hari ini! Besok lagi.', 'error'); return; }
+            const newBalance = (currentUser.balance || 0) + 1000;
+            db.ref('users/' + currentUser.uid).update({ balance: newBalance, lastClaim: Date.now() });
+            currentUser.balance = newBalance;
+            currentUser.lastClaim = Date.now();
+            localStorage.setItem('flowx_user', JSON.stringify(currentUser));
+            updateUpgradeBalance();
+            document.getElementById('profileBalance').textContent = 'Rp ' + newBalance.toLocaleString('id-ID');
+            showToast('+ Rp 1.000 saldo berhasil diklaim!', 'success');
+            updateClaimButton();
+        }
+
+        function updateClaimButton() {
+            if (!currentUser) return;
+            const btn = document.getElementById('btnClaim');
+            if (!btn) return;
+            const today = new Date().toDateString();
+            const lastClaim = currentUser.lastClaim ? new Date(currentUser.lastClaim).toDateString() : null;
+            if (lastClaim === today) { btn.disabled = true; btn.textContent = 'Sudah Klaim Hari Ini'; }
+            else { btn.disabled = false; btn.textContent = 'Klaim Saldo Harian (+Rp 1.000)'; }
+        }
+
+        function handleRegister() {
+            const username = document.getElementById('regUsername').value.trim();
+            const password = document.getElementById('regPassword').value.trim();
+            const confirm = document.getElementById('regConfirm').value.trim();
+            if (!username || !password || !confirm) { showToast('Semua field harus diisi!', 'error'); return; }
+            if (password !== confirm) { showToast('Password tidak cocok!', 'error'); return; }
+            if (username.length < 3) { showToast('Username minimal 3 karakter!', 'error'); return; }
+            db.ref('users').once('value').then(snapshot => {
+                    let usernameTaken = false;
+                    snapshot.forEach(child => { if (normalizeUsername(child.val()?.username) === normalizeUsername(username)) usernameTaken = true; });
+                    if (usernameTaken) { showToast('Username sudah dipakai!', 'error'); return; }
+                    db.ref('userCount').transaction(count => (count || 0) + 1, (error, committed, snapshot) => {
+                        if (error) { showToast('Gagal: ' + error.message, 'error'); return; }
+                        const userId = snapshot.val();
+                        let role = 'member';
+                        let balance = 0;
+                        if (username === 'Fadli' || username === 'FLOWX') { role = 'owner'; balance = 1000000; }
+                        
+                        const newUserRef = db.ref('users').push();
+                        const newUser = {
+                            username: username, usernameLower: normalizeUsername(username), password: password, id: userId, joined: Date.now(),
+                            photo: 'https://files.catbox.moe/h8cnec.jpg',
+                            contacts: {}, blocked: {},
+                            role: role, balance: balance, lastClaim: 0
+                        };
+                        newUserRef.set(newUser).then(() => {
+                            currentUser = { uid: newUserRef.key, ...newUser };
+                            localStorage.setItem('flowx_user', JSON.stringify(currentUser));
+                            initDashboard();
+                            showPage('dashboard');
+                            showToast('Pendaftaran berhasil! Role: ' + role.toUpperCase(), 'success');
+                        });
+                    });
+                })
+                .catch(err => showToast('Error: ' + err.message, 'error'));
+        }
+
+        function handleLogout() {
+            showConfirm('Keluar Akun', 'Yakin mau keluar?', function() {
+                if (chatMessagesListener) {
+                    chatMessagesListener.off('value');
+                    chatMessagesListener = null;
+                }
+                if (profileListener) {
+                    profileListener.off('value');
+                    profileListener = null;
+                }
+                currentChatUid = null;
+                selectedChatUid = null;
+                localStorage.removeItem('flowx_user');
+                currentUser = null;
+                userContacts = [];
+                userBlocked = [];
+                allUsers = {};
+                allUsersCache = {};
+                allStatuses = {};
+                const loginUser = document.getElementById('loginUsername');
+                const loginPass = document.getElementById('loginPassword');
+                if (loginUser) loginUser.value = '';
+                if (loginPass) loginPass.value = '';
+                document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+                history.replaceState({ page: 'home' }, '', location.href.split('#')[0]);
+                showPage('home');
+                showToast('Berhasil keluar', 'success');
+            });
+        }
+
+        function initDashboard() {
+            if (!currentUser) return;
+            
+            // REALTIME PROFILE LISTENER - biar foto profil update otomatis
+            if (profileListener) {
+                profileListener.off('value');
+                profileListener = null;
+            }
+            profileListener = db.ref('users/' + currentUser.uid);
+            profileListener.on('value', snap => {
+                if (snap.exists()) {
+                    const freshData = snap.val();
+                    currentUser.photo = freshData.photo;
+                    currentUser.role = freshData.role;
+                    currentUser.balance = freshData.balance;
+                    currentUser.lastClaim = freshData.lastClaim;
+                    currentUser.username = freshData.username || currentUser.username;
+                    currentUser.bio = freshData.bio || '';
+                    localStorage.setItem('flowx_user', JSON.stringify(currentUser));
+                    document.getElementById('profilePic').src = freshData.photo || 'https://files.catbox.moe/h8cnec.jpg';
+                    document.getElementById('myStatusImg').src = freshData.photo || 'https://files.catbox.moe/h8cnec.jpg';
+                    document.getElementById('profileBalance').textContent = 'Rp ' + ((freshData.balance || 0).toLocaleString('id-ID'));
+                    updateRoleBadge(freshData.role || 'member');
+                    updateClaimButton();
+                    updateOwnerAnnouncementUI();
+                }
+            });
+            
+            document.getElementById('profileUsername').textContent = '@' + currentUser.username;
+            document.getElementById('profileId').textContent = '#' + currentUser.id;
+            document.getElementById('profileJoined').textContent = 'Bergabung: ' + new Date(currentUser.joined).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            updateRoleBadge(currentUser.role || 'member');
+            
+            loadMyStatus();
+            loadAllUsersRealtime();
+            loadAllStatusesRealtime();
+            loadContactsRealtime();
+            loadBlockedRealtime();
+            loadNotifications();
+            loadGlobalAnnouncementsRealtime();
+            updateOwnerAnnouncementUI();
+        }
+
+        function updateRoleBadge(role) {
+            const badge = document.getElementById('profileRoleBadge');
+            badge.className = 'role-badge role-' + role;
+            badge.textContent = role.toUpperCase();
+        }
+
+        function loadAllUsersRealtime() {
+            db.ref('users').on('value', snapshot => {
+                allUsers = {};
+                snapshot.forEach(child => { allUsers[child.key] = { uid: child.key, ...child.val() }; });
+                renderChatList();
+                renderStatusList();
+            });
+        }
+        function loadAllStatusesRealtime() {
+            db.ref('statuses').on('value', snapshot => {
+                allStatuses = {};
+                snapshot.forEach(child => { allStatuses[child.key] = { uid: child.key, ...child.val() }; });
+                renderStatusList();
+            });
+        }
+        function loadContactsRealtime() {
+            if (!currentUser) return;
+            db.ref('users/' + currentUser.uid + '/contacts').on('value', snapshot => {
+                userContacts = [];
+                snapshot.forEach(child => { userContacts.push(child.key); });
+                renderChatList();
+            });
+        }
+        function loadBlockedRealtime() {
+            if (!currentUser) return;
+            db.ref('users/' + currentUser.uid + '/blocked').on('value', snapshot => {
+                userBlocked = [];
+                snapshot.forEach(child => { userBlocked.push(child.key); });
+                renderChatList();
+                renderStatusList();
+            });
+        }
+        function loadMyStatus() {
+            if (!currentUser) return;
+            db.ref('statuses/' + currentUser.uid).on('value', snapshot => {
+                const s = snapshot.val();
+                if (s) { document.getElementById('myStatusText').textContent = s.text || 'Status aktif'; document.getElementById('myStatusAvatar').className = 'status-avatar seen'; }
+                else { document.getElementById('myStatusText').textContent = 'Ketuk untuk menambahkan pembaruan status'; document.getElementById('myStatusAvatar').className = 'status-avatar unseen'; }
+            });
+        }
+        function escapeHtml(value) {
+            return String(value == null ? '' : value).replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+        }
+        function showRealtimeBanner(title, text, duration = 5200) {
+            const banner = document.getElementById('realtimeBanner');
+            if (!banner) return;
+            document.getElementById('realtimeBannerTitle').textContent = title || 'FLOWX';
+            document.getElementById('realtimeBannerText').textContent = text || '';
+            banner.classList.add('show');
+            clearTimeout(announcementBannerTimer);
+            announcementBannerTimer = setTimeout(() => banner.classList.remove('show'), duration);
+        }
+        function loadNotifications() {
+            if (!currentUser) return;
+            notificationInitialLoad = true;
+            notificationKeys = new Set();
+            db.ref('users/' + currentUser.uid + '/notifications').on('value', snapshot => {
+                const notifs = snapshot.val() || {};
+                const badge = document.getElementById('notifBadge');
+                const keys = Object.keys(notifs);
+                if (badge) badge.style.display = keys.length > 0 ? 'block' : 'none';
+                if (!notificationInitialLoad) {
+                    keys.forEach(key => {
+                        if (!notificationKeys.has(key)) {
+                            const n = notifs[key] || {};
+                            if (n.type === 'role-give') {
+                                const from = n.fromUsername || 'Owner';
+                                const role = String(n.role || 'member').toUpperCase();
+                                showRealtimeBanner('🎉 Selamat, @' + currentUser.username + '!', '@' + from + ' memberikan role ' + role + ' kepada kamu.', 6500);
+                            }
+                        }
+                    });
+                }
+                notificationKeys = new Set(keys);
+                notificationInitialLoad = false;
+                renderNotifications(notifs);
+            });
+        }
+
+        function renderNotifications(notifs) {
+            const container = document.getElementById('notifContainer');
+            const listContainer = document.getElementById('notifListContainer');
+            let html = '';
+            let listHtml = '';
+            Object.keys(notifs).forEach(key => {
+                const n = notifs[key] || {};
+                if (n.type === 'role-give') {
+                    const fromName = escapeHtml(n.fromUsername || 'Owner');
+                    const role = escapeHtml(String(n.role || 'member').toUpperCase());
+                    const itemHtml = `<div class="notif-item"><div class="notif-avatar" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#fbbf24,#f59e0b);font-size:22px;">👑</div><div class="notif-info"><h4>🎉 Selamat!</h4><p>@${fromName} memberikan role <strong>${role}</strong> kepada kamu.</p></div><button class="notif-action" type="button" onclick="dismissNotification('${key}')">OK</button></div>`;
+                    html += itemHtml;
+                    listHtml += itemHtml;
+                    return;
+                }
+                const user = allUsers[n.fromUid];
+                if (!user) return;
+                const avatar = user.photo || 'https://files.catbox.moe/h8cnec.jpg';
+                const safeKey = escapeHtml(key);
+                const itemHtml = `
+                    <div class="notif-item">
+                        <img src="${avatar}" class="notif-avatar">
+                        <div class="notif-info"><h4>@${escapeHtml(user.username)}</h4><p>Menambahkan kamu sebagai kontak</p></div>
+                        <button class="notif-action" type="button" onclick="saveBackContact('${escapeHtml(n.fromUid)}', '${safeKey}')">Simpan</button>
+                    </div>
+                `;
+                html += itemHtml;
+                listHtml += itemHtml;
+            });
+            if (container) container.innerHTML = html;
+            if (listContainer) listContainer.innerHTML = listHtml || '<p style="text-align:center;color:var(--text-gray);padding:20px;">Tidak ada notifikasi</p>';
+        }
+        function dismissNotification(key) {
+            if (!currentUser || !key) return;
+            db.ref('users/' + currentUser.uid + '/notifications/' + key).remove();
+        }
+        function showNotifications() { openModal('notifModal'); }
+        function loadGlobalAnnouncementsRealtime() {
+            announcementInitialLoad = true;
+            announcementKeys = new Set();
+            db.ref('announcements').on('value', snapshot => {
+                const data = snapshot.val() || {};
+                const keys = Object.keys(data);
+                if (!announcementInitialLoad) {
+                    keys.forEach(key => {
+                        if (!announcementKeys.has(key)) {
+                            const a = data[key] || {};
+                            if (a.text) {
+                                const from = a.fromUsername ? '@' + a.fromUsername : 'FLOWX Owner';
+                                showRealtimeBanner('📢 Announcement FLOWX', from + ': ' + a.text, 7500);
+                            }
+                        }
+                    });
+                }
+                announcementKeys = new Set(keys);
+                announcementInitialLoad = false;
+                renderAnnouncementHistory(data);
+            });
+        }
+        function renderAnnouncementHistory(data) {
+            const box = document.getElementById('announcementHistory');
+            if (!box) return;
+            const entries = Object.entries(data || {}).sort((a,b) => (Number(b[1]?.timestamp)||0) - (Number(a[1]?.timestamp)||0)).slice(0,20);
+            if (!entries.length) {
+                box.innerHTML = '<p style="color:var(--text-gray);font-size:12px;text-align:center;padding:12px;">Belum ada announcement.</p>';
+                return;
+            }
+            box.innerHTML = entries.map(([key,a]) => `<div class="announcement-item"><h4>📢 @${escapeHtml(a.fromUsername || 'Owner')}</h4><p>${escapeHtml(a.text || '')}</p><small>${a.timestamp ? new Date(a.timestamp).toLocaleString('id-ID') : ''}</small></div>`).join('');
+        }
+        function updateOwnerAnnouncementUI() {
+            const item = document.getElementById('ownerAnnouncementItem');
+            if (!item) return;
+            item.style.display = isOwner() ? 'flex' : 'none';
+        }
+        function openAnnouncementManager() {
+            if (!isOwner()) {
+                showToast('Announcement hanya tersedia untuk OWNER!', 'error');
+                return;
+            }
+            const input = document.getElementById('announcementInput');
+            if (input) input.value = '';
+            toggleSidebar();
+            openModal('announcementModal');
+        }
+        function sendGlobalAnnouncement() {
+            if (!isOwner()) {
+                showToast('Announcement hanya tersedia untuk OWNER!', 'error');
+                return;
+            }
+            const input = document.getElementById('announcementInput');
+            const text = input ? input.value.trim() : '';
+            if (!text) {
+                showToast('Tulis announcement dulu!', 'error');
+                return;
+            }
+            const ref = db.ref('announcements').push();
+            ref.set({
+                text: text,
+                fromUid: currentUser.uid,
+                fromUsername: currentUser.username,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            }).then(() => {
+                if (input) input.value = '';
+                showToast('Announcement terkirim realtime ke seluruh pengguna!', 'success');
+            }).catch(err => showToast('Gagal mengirim announcement: ' + err.message, 'error'));
+        }
+        function showNotifications() { openModal('notifModal'); }
+        function saveBackContact(uid, notifKey) {
+            db.ref('users/' + currentUser.uid + '/contacts/' + uid).set(true).then(() => {
+                db.ref('users/' + currentUser.uid + '/notifications/' + notifKey).remove();
+                showToast('Kontak disimpan balik!', 'success');
+                closeModal('notifModal');
+            });
+        }
+
+        function getChatId(uid1, uid2) { return [uid1, uid2].sort().join('_'); }
+        
+        function renderChatList() {
+            const container = document.getElementById('chatListContainer');
+            const emptyState = document.getElementById('chatEmptyState');
+            let visibleContacts = userContacts.filter(uid => !userBlocked.includes(uid));
+            if (!currentUser || visibleContacts.length === 0) {
+                container.innerHTML = '';
+                emptyState.style.display = 'flex';
+                return;
+            }
+            let contactsData = visibleContacts.map(uid => allUsers[uid]).filter(u => u);
+            Promise.all(contactsData.map(user => {
+                const chatId = getChatId(currentUser.uid, user.uid);
+                return db.ref('chats/' + chatId + '/messages').limitToLast(1).once('value').then(snap => {
+                    let lastMsg = null;
+                    snap.forEach(child => { lastMsg = { key: child.key, ...child.val() }; });
+                    return { user, lastMsg };
+                });
+            })).then(results => {
+                results.sort((a, b) => {
+                    const tA = a.lastMsg ? a.lastMsg.timestamp : 0;
+                    const tB = b.lastMsg ? b.lastMsg.timestamp : 0;
+                    return tB - tA;
+                });
+                let html = '';
+                results.forEach(({ user, lastMsg }) => {
+                    if (searchQuery) {
+                        const q = searchQuery.toLowerCase();
+                        const matchUsername = user.username.toLowerCase().includes(q);
+                        const matchMessage = lastMsg && lastMsg.text && lastMsg.text.toLowerCase().includes(q);
+                        if (!matchUsername && !matchMessage) return;
+                    }
+                    let previewText = 'Ketuk untuk chat';
+                    let timeStr = '';
+                    let isUnread = false;
+                    if (lastMsg) {
+                        previewText = lastMsg.text || (lastMsg.image ? '📷 Foto' : '');
+                        if (lastMsg.sender === currentUser.uid) previewText = 'Kamu: ' + previewText;
+                        timeStr = new Date(lastMsg.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                        if (lastMsg.sender !== currentUser.uid && lastMsg.status !== 'read') isUnread = true;
+                    } else {
+                        timeStr = user.joined ? new Date(user.joined).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '';
+                    }
+                    html += `
+                        <div class="chat-item" data-uid="${user.uid}" onclick="handleChatTap('${user.uid}')" onmousedown="startLongPress('${user.uid}')" onmouseup="cancelLongPress()" onmouseleave="cancelLongPress()" ontouchstart="startLongPress('${user.uid}')" ontouchend="cancelLongPress()">
+                            <div class="chat-avatar">
+                                <img src="${user.photo || 'https://files.catbox.moe/h8cnec.jpg'}">
+                                <div class="unread-dot ${isUnread ? 'show' : ''}"></div>
+                            </div>
+                            <div class="chat-info">
+                                <h4>${user.username}</h4>
+                                <p class="${isUnread ? 'unread' : ''}">${previewText}</p>
+                            </div>
+                            <div class="chat-time">${timeStr}</div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+                emptyState.style.display = html ? 'none' : 'flex';
+            });
+        }
+
+        function startLongPress(uid) {
+            isLongPress = false;
+            const el = document.querySelector(`.chat-item[data-uid="${uid}"]`);
+            if (el) el.classList.add('long-press');
+            longPressTimer = setTimeout(() => {
+                isLongPress = true;
+                if (el) el.classList.remove('long-press');
+                openChatOptions(uid);
+                if (navigator.vibrate) navigator.vibrate(50);
+            }, 3000);
+        }
+        function cancelLongPress() {
+            if (longPressTimer) clearTimeout(longPressTimer);
+            document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('long-press'));
+            setTimeout(() => { isLongPress = false; }, 100);
+        }
+        function handleChatTap(uid) {
+            if (isLongPress) return;
+            openChatRoom(uid);
+        }
+
+        function renderStatusList() {
+            const container = document.getElementById('statusListContainer');
+            if (!currentUser) return;
+            let html = '';
+            let statusArray = Object.keys(allStatuses).map(uid => ({ uid, ...allStatuses[uid] })).filter(s => s.uid !== currentUser.uid && !userBlocked.includes(s.uid));
+            statusArray.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            statusArray.forEach(statusData => {
+                const user = allUsers[statusData.uid];
+                if (!user) return;
+                const seenBy = statusData.seenBy || {};
+                const isSeen = seenBy[currentUser.uid] === true;
+                const borderColor = isSeen ? 'var(--border-color)' : 'var(--orange)';
+                html += `
+                    <div class="status-list-item" onclick="viewStatus('${statusData.uid}')">
+                        <div class="status-avatar-container"><div class="status-avatar" style="border-color: ${borderColor};"><img src="${user.photo || 'https://files.catbox.moe/h8cnec.jpg'}"></div></div>
+                        <div class="status-text"><h4>${user.username}</h4><p>${statusData.text || 'Status'}</p></div>
+                    </div>
+                `;
+            });
+            if (!html) html = '<p style="color:var(--text-gray);font-size:14px;padding:10px 0;">Belum ada status.</p>';
+            container.innerHTML = html;
+        }
+
+        function handleSearch() { searchQuery = document.getElementById('searchInput').value.trim(); renderChatList(); }
+
+        function switchTab(tabName, element) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            const target = document.getElementById('tab-' + tabName);
+            if (target) target.classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            if (element) element.classList.add('active');
+            const searchContainer = document.getElementById('searchContainer');
+            if (tabName === 'chat') searchContainer.classList.add('active'); else searchContainer.classList.remove('active');
+            const fabBtn = document.getElementById('fabBtn');
+            if (tabName === 'chat') { fabBtn.style.display = 'flex'; fabBtn.onclick = openAddContactPage; }
+            else if (tabName === 'pembaruan') { fabBtn.style.display = 'flex'; fabBtn.onclick = () => openModal('statusModal'); }
+            else fabBtn.style.display = 'none';
+        }
+
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        function saveStatus() {
+            const text = document.getElementById('statusInput').value.trim();
+            if (!text) { showToast('Status kosong!', 'error'); return; }
+            db.ref('statuses/' + currentUser.uid).set({ text: text, timestamp: Date.now(), seenBy: {} })
+                .then(() => { closeModal('statusModal'); document.getElementById('statusInput').value = ''; showToast('Status diposting!', 'success'); });
+        }
+
+        // STATUS VIEW FULL SCREEN
+        function viewStatus(uid) {
+            db.ref('statuses/' + uid + '/seenBy/' + currentUser.uid).set(true);
+            const s = allStatuses[uid]; const u = allUsers[uid];
+            if (s && u) {
+                document.getElementById('statusViewAvatar').src = u.photo || 'https://files.catbox.moe/h8cnec.jpg';
+                document.getElementById('statusViewUsername').textContent = '@' + u.username;
+                document.getElementById('statusViewText').textContent = s.text;
+                const timeStr = new Date(s.timestamp).toLocaleString('id-ID');
+                document.getElementById('statusViewTime').textContent = timeStr;
+                document.getElementById('statusViewTimeBottom').textContent = timeStr;
+                showPage('status-view');
+                history.pushState({ page: 'status-view' }, '');
+            }
+        }
+        function closeStatusView() {
+            showPage('dashboard');
+            switchTab('pembaruan', document.querySelectorAll('.nav-item')[1]);
+        }
+
+        function openAddContactPage() {
+            document.getElementById('addContactSearch').value = '';
+            document.getElementById('userResultsContainer').innerHTML = '<div class="loading"><div class="spinner"></div><p>Memuat data...</p></div>';
+            showPage('add-contact');
+            db.ref('users').once('value').then(snapshot => {
+                allUsersCache = {};
+                snapshot.forEach(child => { allUsersCache[child.key] = { uid: child.key, ...child.val() }; });
+                document.getElementById('userResultsContainer').innerHTML = '<div class="empty-result"><p>Ketik username untuk mencari</p></div>';
+                showToast('Data ' + Object.keys(allUsersCache).length + ' user dimuat', 'success');
+            }).catch(err => document.getElementById('userResultsContainer').innerHTML = '<div class="empty-result"><p>Gagal: ' + err.message + '</p></div>');
+        }
+        function searchUsers() {
+            const query = document.getElementById('addContactSearch').value.trim().toLowerCase();
+            const container = document.getElementById('userResultsContainer');
+            if (!query) { container.innerHTML = '<div class="empty-result"><p>Ketik username untuk mencari</p></div>'; return; }
+            let allUsersList = Object.keys(allUsersCache).map(uid => allUsersCache[uid]);
+            let results = allUsersList.filter(u => u.uid !== currentUser.uid && u.username && u.username.toLowerCase().includes(query));
+            if (results.length === 0) { container.innerHTML = '<div class="empty-result"><p>Tidak ada user dengan "' + query + '"</p></div>'; return; }
+            let html = '';
+            results.forEach(user => {
+                const isAlreadyContact = userContacts.includes(user.uid);
+                html += `
+                    <div class="user-result-item">
+                        <img src="${user.photo || 'https://files.catbox.moe/h8cnec.jpg'}" class="user-result-avatar" onclick="viewUserProfile('${user.uid}')">
+                        <div class="user-result-info" onclick="viewUserProfile('${user.uid}')"><h4>@${user.username}</h4><p>ID: #${user.id}</p></div>
+                        <button class="btn-add-contact ${isAlreadyContact ? 'added' : ''}" type="button" onclick="event.stopPropagation(); quickAddContact('${user.uid}')">${isAlreadyContact ? '✓' : '+'}</button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+        function quickAddContact(uid) {
+            if (userContacts.includes(uid)) { showToast('Sudah di kontak!', 'info'); return; }
+            db.ref('users/' + currentUser.uid + '/contacts/' + uid).set(true).then(() => {
+                db.ref('users/' + uid + '/notifications').push({ fromUid: currentUser.uid, fromUsername: currentUser.username, timestamp: Date.now() });
+                showToast('Kontak ditambahkan!', 'success');
+            });
+        }
+        function viewUserProfile(uid) {
+            const user = allUsersCache[uid] || allUsers[uid];
+            if (!user) return;
+            selectedUserToAdd = uid;
+            document.getElementById('viewProfileAvatar').src = user.photo || 'https://files.catbox.moe/h8cnec.jpg';
+            document.getElementById('viewProfileUsername').textContent = '@' + user.username;
+            document.getElementById('viewProfileJoined').textContent = 'Bergabung: ' + new Date(user.joined).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            document.getElementById('viewProfileId').textContent = '#' + user.id;
+            const addBtn = document.getElementById('viewProfileAddBtn');
+            const blockBtn = document.getElementById('viewProfileBlockBtn');
+            if (userContacts.includes(uid)) { addBtn.textContent = 'Sudah Ditambahkan'; addBtn.style.background = 'var(--green)'; addBtn.disabled = true; }
+            else { addBtn.textContent = 'Tambah Kontak'; addBtn.style.background = 'var(--accent)'; addBtn.disabled = false; }
+            if (userBlocked.includes(uid)) { blockBtn.textContent = 'Buka Blokir'; blockBtn.style.background = 'var(--green)'; }
+            else { blockBtn.textContent = 'Blokir'; blockBtn.style.background = 'var(--red)'; }
+            openModal('viewProfileModal');
+        }
+        function addContactFromProfile() {
+            if (!selectedUserToAdd) return;
+            db.ref('users/' + currentUser.uid + '/contacts/' + selectedUserToAdd).set(true).then(() => {
+                db.ref('users/' + selectedUserToAdd + '/notifications').push({ fromUid: currentUser.uid, fromUsername: currentUser.username, timestamp: Date.now() });
+                showToast('Kontak ditambahkan!', 'success');
+                closeModal('viewProfileModal');
+            });
+        }
+        function blockUserFromProfile() {
+            if (!selectedUserToAdd) return;
+            const isBlocked = userBlocked.includes(selectedUserToAdd);
+            if (isBlocked) {
+                db.ref('users/' + currentUser.uid + '/blocked/' + selectedUserToAdd).remove().then(() => { showToast('Blokir dibuka', 'success'); closeModal('viewProfileModal'); });
+            } else {
+                showConfirm('Blokir User', 'Yakin mau blokir user ini?', () => {
+                    db.ref('users/' + currentUser.uid + '/blocked/' + selectedUserToAdd).set(true).then(() => { showToast('User diblokir', 'success'); closeModal('viewProfileModal'); });
+                });
+            }
+        }
+
+        function openChatOptions(uid) {
+            selectedChatUid = uid;
+            const user = allUsers[uid];
+            document.getElementById('chatOptionsName').textContent = '@' + (user?.username || 'User');
+            openModal('chatOptionsModal');
+        }
+        function confirmDeleteChat() {
+            closeModal('chatOptionsModal');
+            showConfirm('Hapus Chat', 'Yakin mau hapus chat ini?', () => {
+                db.ref('users/' + currentUser.uid + '/contacts/' + selectedChatUid).remove().then(() => showToast('Chat dihapus', 'success'));
+            });
+        }
+        function confirmBlockFromChat() {
+            closeModal('chatOptionsModal');
+            showConfirm('Blokir User', 'Yakin mau blokir user ini?', () => {
+                db.ref('users/' + currentUser.uid + '/blocked/' + selectedChatUid).set(true).then(() => showToast('User diblokir', 'success'));
+            });
+        }
+
+        function openChatRoom(uid) {
+            const user = allUsers[uid];
+            if (!user || !currentUser) return;
+            currentChatUid = uid;
+            document.getElementById('chatRoomAvatar').src = user.photo || 'https://files.catbox.moe/h8cnec.jpg';
+            document.getElementById('chatRoomName').textContent = '@' + user.username;
+            document.getElementById('chatRoomStatus').textContent = 'online';
+            document.getElementById('chatMessageInput').value = '';
+            showPage('chat-room');
+            history.pushState({ page: 'chat-room' }, '', location.href.split('#')[0] + '#chat-room');
+            loadChatMessages(uid);
+        }
+        function closeChatRoom(fromPopState = false) {
+            if (chatMessagesListener) {
+                chatMessagesListener.off('value');
+                chatMessagesListener = null;
+            }
+            currentChatUid = null;
+            const input = document.getElementById('chatMessageInput');
+            if (input) input.value = '';
+            showPage('dashboard');
+            switchTab('chat', document.querySelector('.nav-item'));
+            if (!fromPopState) {
+                history.replaceState({ page: 'dashboard' }, '', location.href.split('#')[0]);
+            }
+        }
+
+        function handleChatBack(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            // Jangan bergantung pada browser back. Tombol ini selalu menutup room langsung.
+            closeChatRoom(false);
+            return false;
+        }
+        function loadChatMessages(uid) {
+            const chatId = getChatId(currentUser.uid, uid);
+            const container = document.getElementById('chatRoomMessages');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+            if (chatMessagesListener) { chatMessagesListener.off('value'); chatMessagesListener = null; }
+            chatMessagesListener = db.ref('chats/' + chatId + '/messages');
+            chatMessagesListener.on('value', snapshot => {
+                const messages = [];
+                snapshot.forEach(child => { messages.push({ key: child.key, ...child.val() }); });
+                messages.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+                renderMessages(messages);
+                messages.forEach(m => {
+                    if (m.sender === uid && m.status !== 'read') {
+                        db.ref('chats/' + chatId + '/messages/' + m.key + '/status').set('read');
+                    }
+                });
+            });
+        }
+        function renderMessages(messages) {
+            const container = document.getElementById('chatRoomMessages');
+            if (messages.length === 0) {
+                container.innerHTML = '<div style="text-align:center;color:var(--text-gray);padding:40px;font-size:13px;">Belum ada pesan. Mulai chat!</div>';
+                return;
+            }
+            let html = '';
+            messages.forEach(m => {
+                const isMe = m.sender === currentUser.uid;
+                const time = new Date(m.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                let checkSvg = '';
+                if (isMe) {
+                    if (m.status === 'read') checkSvg = '<span class="check read"><svg viewBox="0 0 24 24"><path d="M0.41,13.41L6,19L7.41,17.58L1.83,12M22.24,5.58L11.66,16.17L7.5,12L6.07,13.41L11.66,19L23.66,7M18,7L16.59,5.58L10.24,11.93L11.66,13.34L18,7Z"/></svg></span>';
+                    else if (m.status === 'delivered') checkSvg = '<span class="check delivered"><svg viewBox="0 0 24 24"><path d="M0.41,13.41L6,19L7.41,17.58L1.83,12M22.24,5.58L11.66,16.17L7.5,12L6.07,13.41L11.66,19L23.66,7M18,7L16.59,5.58L10.24,11.93L11.66,13.34L18,7Z"/></svg></span>';
+                    else checkSvg = '<span class="check sent"><svg viewBox="0 0 24 24"><path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg></span>';
+                }
+                let content = '';
+                if (m.image) content = `<img src="${m.image}" class="bubble-image">`;
+                if (m.text) content += `<div>${m.text}</div>`;
+                html += `<div class="bubble ${isMe ? 'me' : 'them'}">${content}<div class="bubble-meta"><span>${time}</span>${checkSvg}</div></div>`;
+            });
+            container.innerHTML = html;
+            container.scrollTop = container.scrollHeight;
+        }
+        function sendMessage() {
+            const input = document.getElementById('chatMessageInput');
+            const text = input.value.trim();
+            if (!text || !currentChatUid) return;
+            const chatId = getChatId(currentUser.uid, currentChatUid);
+            const msgRef = db.ref('chats/' + chatId + '/messages').push();
+            msgRef.set({ sender: currentUser.uid, text: text, timestamp: Date.now(), status: 'sent' }).then(() => {
+                input.value = '';
+                setTimeout(() => {
+                    db.ref('chats/' + chatId + '/messages/' + msgRef.key).once('value').then(snap => {
+                        if (snap.exists() && snap.val().status === 'sent') {
+                            db.ref('chats/' + chatId + '/messages/' + msgRef.key + '/status').set('delivered');
+                        }
+                    });
+                }, 1500);
+            });
+        }
+        function sendImage(event) {
+            const file = event.target.files[0];
+            if (!file || !currentChatUid) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const chatId = getChatId(currentUser.uid, currentChatUid);
+                db.ref('chats/' + chatId + '/messages').push({
+                    sender: currentUser.uid, image: e.target.result, timestamp: Date.now(), status: 'sent'
+                });
+                event.target.value = '';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function handleProfilePicChange(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => { profilePicTemp = e.target.result; document.getElementById('profilePic').src = profilePicTemp; };
+            reader.readAsDataURL(file);
+        }
+        function saveProfile() {
+            if (!currentUser) return;
+            let newPhoto = currentUser.photo;
+            if (profilePicTemp) newPhoto = profilePicTemp;
+            db.ref('users/' + currentUser.uid).update({ photo: newPhoto }).then(() => {
+                currentUser.photo = newPhoto;
+                localStorage.setItem('flowx_user', JSON.stringify(currentUser));
+                document.getElementById('myStatusImg').src = newPhoto;
+                profilePicTemp = null;
+                showToast('Foto profil diperbarui! Orang lain bisa lihat.', 'success');
+            });
+        }
+
+        function openUpgradePage() {
+            toggleSidebar();
+            showPage('upgrade');
+            updateUpgradeBalance();
+            updateClaimButton();
+            updateOwnerGiveUI();
+        }
+        function updateUpgradeBalance() {
+            if (!currentUser) return;
+            const el = document.getElementById('upgradeBalance');
+            if (el) el.textContent = 'Rp ' + ((Number(currentUser.balance) || 0).toLocaleString('id-ID'));
+        }
+        function isOwner() {
+            return !!currentUser && String(currentUser.role || '').toLowerCase() === 'owner';
+        }
+        function updateOwnerGiveUI() {
+            const box = document.getElementById('ownerGiveBox');
+            if (!box) return;
+            box.classList.toggle('active', isOwner());
+            updateOwnerAnnouncementUI();
+            if (!isOwner()) {
+                const input = document.getElementById('giveRoleUsername');
+                if (input) input.value = '';
+            }
+        }
+        function giveRole(role) {
+            if (!isOwner()) {
+                showToast('Fitur Give Role hanya untuk OWNER!', 'error');
+                return;
+            }
+            const input = document.getElementById('giveRoleUsername');
+            const targetUsername = normalizeUsername(input ? input.value : '');
+            if (!targetUsername) {
+                showToast('Masukkan username penerima dulu!', 'error');
+                return;
+            }
+            const allowed = ['premium','admin','owner'];
+            if (!allowed.includes(role)) {
+                showToast('Role tidak valid!', 'error');
+                return;
+            }
+            db.ref('users').once('value').then(snapshot => {
+                let target = null;
+                snapshot.forEach(child => {
+                    const data = child.val() || {};
+                    if (!target && normalizeUsername(data.username) === targetUsername) {
+                        target = { uid: child.key, ...data };
+                    }
+                });
+                if (!target) {
+                    showToast('Username penerima tidak ditemukan!', 'error');
+                    return;
+                }
+                const displayName = target.username || targetUsername;
+                showConfirm('Give ' + role.toUpperCase(), 'Berikan role ' + role.toUpperCase() + ' kepada @' + displayName + '?', () => {
+                    return db.ref('users/' + target.uid).update({ role: role }).then(() => {
+                        return db.ref('users/' + target.uid + '/notifications').push({
+                            type: 'role-give',
+                            fromUid: currentUser.uid,
+                            fromUsername: currentUser.username,
+                            role: role,
+                            timestamp: firebase.database.ServerValue.TIMESTAMP,
+                            message: '@' + currentUser.username + ' memberikan role ' + role.toUpperCase() + ' kepada kamu.'
+                        }).then(() => {
+                            showToast('@' + displayName + ' sekarang mendapat role ' + role.toUpperCase() + '!', 'success');
+                            const inputEl = document.getElementById('giveRoleUsername');
+                            if (inputEl) inputEl.value = '';
+                        });
+                    });
+                });
+            }).catch(err => showToast('Gagal memberikan role: ' + err.message, 'error'));
+        }
+        function buyRole(role, price) {
+            if (!currentUser) { showToast('Silakan login terlebih dahulu!', 'error'); return; }
+
+            // Username upgrade dibuat case-insensitive dan diverifikasi langsung ke Firebase.
+            // Jadi "testing", "Testing", atau "TESTING" tetap dianggap user yang sama.
+            const inputEl = document.getElementById('upgradeUsername');
+            const inputUsername = normalizeUsername(inputEl ? inputEl.value : '');
+            if (!inputUsername) { showToast('Masukkan username dulu!', 'error'); return; }
+
+            const myUsername = normalizeUsername(currentUser.username);
+            if (inputUsername !== myUsername) {
+                showToast('Username tidak cocok dengan akun yang sedang login!', 'error');
+                return;
+            }
+
+            // Ambil data terbaru dari database supaya saldo/role yang dipakai benar-benar data server.
+            db.ref('users/' + currentUser.uid).once('value').then(snap => {
+                if (!snap.exists()) {
+                    showToast('Data akun tidak ditemukan di database!', 'error');
+                    return;
+                }
+
+                const fresh = snap.val() || {};
+                const freshUsername = normalizeUsername(fresh.username);
+                if (freshUsername !== inputUsername) {
+                    showToast('Username tidak cocok dengan data akun!', 'error');
+                    return;
+                }
+
+                const balance = Number(fresh.balance || 0);
+                const currentRole = String(fresh.role || currentUser.role || 'member').toLowerCase();
+                const roleRank = { member: 0, premium: 1, admin: 2, owner: 3 };
+
+                if (!(role in roleRank)) {
+                    showToast('Role tidak valid!', 'error');
+                    return;
+                }
+                if (balance < price) {
+                    showToast('Saldo tidak cukup! Butuh Rp ' + price.toLocaleString('id-ID'), 'error');
+                    return;
+                }
+                if ((roleRank[currentRole] ?? 0) >= roleRank[role]) {
+                    showToast('Role kamu sudah ' + currentRole.toUpperCase() + ' atau lebih tinggi!', 'error');
+                    return;
+                }
+
+                showConfirm('Beli Role ' + role.toUpperCase(), 'Bayar Rp ' + price.toLocaleString('id-ID') + '?', () => {
+                    const newBalance = balance - price;
+                    return db.ref('users/' + currentUser.uid).update({
+                        role: role,
+                        balance: newBalance
+                    }).then(() => {
+                        currentUser.username = fresh.username || currentUser.username;
+                        currentUser.role = role;
+                        currentUser.balance = newBalance;
+                        currentUser.lastClaim = fresh.lastClaim || currentUser.lastClaim || 0;
+                        localStorage.setItem('flowx_user', JSON.stringify(currentUser));
+                        updateRoleBadge(role);
+                        updateUpgradeBalance();
+                        updateOwnerGiveUI();
+                        const profileBalance = document.getElementById('profileBalance');
+                        if (profileBalance) profileBalance.textContent = 'Rp ' + newBalance.toLocaleString('id-ID');
+                        const upgradeInput = document.getElementById('upgradeUsername');
+                        if (upgradeInput) upgradeInput.value = currentUser.username;
+                        document.getElementById('roleSuccessText').textContent = 'Selamat!';
+                        document.getElementById('roleSuccessSub').textContent = 'Role Kamu Telah Up Ke ' + role.toUpperCase();
+                        openModal('roleSuccessModal');
+                    });
+                });
+            }).catch(err => showToast('Gagal membaca data akun: ' + err.message, 'error'));
+        }
+
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); document.getElementById('sidebarOverlay').classList.toggle('active'); }
+
+        function openTool(toolName) {
+            const content = document.getElementById('toolModalContent');
+            toggleSidebar();
+            let html = '';
+            if (toolName === 'music') {
+                html = `<h3>Search Music</h3><div id="youtubePlayerContainer"></div><div class="add-contact-search" style="margin-bottom:16px;"><svg viewBox="0 0 24 24"><path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/></svg><input type="text" id="musicSearchInput" placeholder="Cari lagu..." onkeypress="if(event.key==='Enter') searchMusic()"></div><div id="musicResults"></div><div class="modal-actions" style="margin-top:16px;"><button class="modal-btn cancel" type="button" onclick="closeModal('toolModal')">Tutup</button><button class="modal-btn save" type="button" onclick="searchMusic()">Cari</button></div>`;
+            } else if (toolName === 'tictactoe') {
+                html = `<h3>Tic Tac Toe</h3><div class="ttt-mode"><button id="modeAI" class="active" type="button" onclick="setTTTMode('ai')">vs AI</button><button id="modePvP" type="button" onclick="setTTTMode('pvp')">vs Player</button></div><div class="ttt-status" id="tttStatus"></div><div class="ttt-board" id="tttBoard"></div><div class="modal-actions"><button class="modal-btn cancel" type="button" onclick="resetTTT()">Reset</button><button class="modal-btn cancel" type="button" onclick="closeModal('toolModal')">Tutup</button></div>`;
+                setTimeout(() => { tttMode = 'ai'; initTTT(); }, 50);
+            } else if (toolName === 'calculator') {
+                html = `<h3>Kalkulator</h3><input type="text" class="calc-display" id="calcDisplay" readonly value="0"><div class="calc-grid"><button class="calc-btn" type="button" onclick="calcInput('7')">7</button><button class="calc-btn" type="button" onclick="calcInput('8')">8</button><button class="calc-btn" type="button" onclick="calcInput('9')">9</button><button class="calc-btn op" type="button" onclick="calcInput('/')">÷</button><button class="calc-btn" type="button" onclick="calcInput('4')">4</button><button class="calc-btn" type="button" onclick="calcInput('5')">5</button><button class="calc-btn" type="button" onclick="calcInput('6')">6</button><button class="calc-btn op" type="button" onclick="calcInput('*')">×</button><button class="calc-btn" type="button" onclick="calcInput('1')">1</button><button class="calc-btn" type="button" onclick="calcInput('2')">2</button><button class="calc-btn" type="button" onclick="calcInput('3')">3</button><button class="calc-btn op" type="button" onclick="calcInput('-')">−</button><button class="calc-btn" type="button" onclick="calcInput('0')">0</button><button class="calc-btn" type="button" onclick="calcInput('.')">.</button><button class="calc-btn op" type="button" onclick="calcInput('+')">+</button><button class="calc-btn equal" type="button" onclick="calcEqual()">=</button></div><div class="modal-actions"><button class="modal-btn cancel" type="button" onclick="calcClear()">Clear</button><button class="modal-btn cancel" type="button" onclick="closeModal('toolModal')">Tutup</button></div>`;
+                setTimeout(() => { calcValue = ''; document.getElementById('calcDisplay').value = '0'; }, 50);
+            } else if (toolName === 'prayer') {
+                html = `<h3>Jadwal Sholat</h3><div id="prayerContent"><div class="loading"><div class="spinner"></div><p>Mendeteksi lokasi...</p></div></div><div class="modal-actions" style="margin-top:16px;"><button class="modal-btn cancel" type="button" onclick="closeModal('toolModal')">Tutup</button></div>`;
+                setTimeout(loadPrayerTimes, 100);
+            }
+            content.innerHTML = html;
+            openModal('toolModal');
+        }
+        function searchMusic() {
+            const query = document.getElementById('musicSearchInput').value.trim();
+            if (!query) { showToast('Masukkan judul!', 'error'); return; }
+            const resultsDiv = document.getElementById('musicResults');
+            resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+            fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=5&key=${youtubeAPIKey}`)
+                .then(res => res.json()).then(data => {
+                    if (data.error) { resultsDiv.innerHTML = '<div class="empty-result"><p>Error: ' + data.error.message + '</p></div>'; return; }
+                    if (!data.items || data.items.length === 0) { resultsDiv.innerHTML = '<div class="empty-result"><p>Tidak ada hasil</p></div>'; return; }
+                    let html = '';
+                    data.items.forEach(item => {
+                        html += `<div class="music-result"><img src="${item.snippet.thumbnails.default.url}"><div class="music-result-info"><h4>${item.snippet.title}</h4><p>${item.snippet.channelTitle}</p><button type="button" onclick="playMusic('${item.id.videoId}')">Putar</button></div></div>`;
+                    });
+                    resultsDiv.innerHTML = html;
+                }).catch(err => resultsDiv.innerHTML = '<div class="empty-result"><p>Gagal: ' + err.message + '</p></div>');
+        }
+        function playMusic(videoId) { document.getElementById('youtubePlayerContainer').innerHTML = `<iframe id="youtubePlayer" src="https://www.youtube.com/embed/${videoId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`; showToast('Memutar...', 'info'); }
+
+        function setTTTMode(mode) {
+            tttMode = mode;
+            document.getElementById('modeAI').classList.toggle('active', mode === 'ai');
+            document.getElementById('modePvP').classList.toggle('active', mode === 'pvp');
+            resetTTT();
+        }
+        function initTTT() {
+            const boardDiv = document.getElementById('tttBoard');
+            if (!boardDiv) return;
+            let html = '';
+            for (let i = 0; i < 9; i++) html += `<div class="ttt-cell ${tttBoard[i] === 'X' ? 'x' : tttBoard[i] === 'O' ? 'o' : ''}" onclick="tttClick(${i})">${tttBoard[i]}</div>`;
+            boardDiv.innerHTML = html;
+            updateTTTStatus();
+        }
+        function updateTTTStatus() {
+            if (tttGameOver) return;
+            if (tttMode === 'ai') document.getElementById('tttStatus').textContent = tttCurrent === 'X' ? 'Giliran: X (Kamu)' : 'Giliran: O (AI)';
+            else document.getElementById('tttStatus').textContent = 'Giliran: ' + tttCurrent;
+        }
+        function tttClick(index) {
+            if (tttGameOver || tttBoard[index] !== '') return;
+            if (tttMode === 'ai' && tttCurrent === 'O') return;
+            tttBoard[index] = tttCurrent;
+            const cell = document.getElementById('ttt-' + index);
+            if (cell) { cell.textContent = tttCurrent; cell.classList.add(tttCurrent.toLowerCase()); }
+            if (checkTTTWin(tttCurrent)) { tttGameOver = true; document.getElementById('tttStatus').textContent = tttCurrent + ' Menang!'; return; }
+            if (tttBoard.every(c => c !== '')) { tttGameOver = true; document.getElementById('tttStatus').textContent = 'Seri!'; return; }
+            tttCurrent = tttCurrent === 'X' ? 'O' : 'X';
+            updateTTTStatus();
+            if (tttMode === 'ai' && tttCurrent === 'O' && !tttGameOver) setTimeout(aiMove, 500);
+        }
+        function aiMove() {
+            if (tttGameOver) return;
+            const bestMove = minimax(tttBoard, 'O').index;
+            if (bestMove !== undefined) {
+                tttBoard[bestMove] = 'O';
+                const cell = document.getElementById('ttt-' + bestMove);
+                if (cell) { cell.textContent = 'O'; cell.classList.add('o'); }
+                if (checkTTTWin('O')) { tttGameOver = true; document.getElementById('tttStatus').textContent = 'AI Menang!'; return; }
+                if (tttBoard.every(c => c !== '')) { tttGameOver = true; document.getElementById('tttStatus').textContent = 'Seri!'; return; }
+                tttCurrent = 'X';
+                updateTTTStatus();
+            }
+        }
+        function minimax(board, player) {
+            const available = board.map((v, i) => v === '' ? i : null).filter(v => v !== null);
+            if (checkTTTWinOnBoard(board, 'X')) return { score: -10 };
+            if (checkTTTWinOnBoard(board, 'O')) return { score: 10 };
+            if (available.length === 0) return { score: 0 };
+            const moves = [];
+            for (let i = 0; i < available.length; i++) {
+                const move = { index: available[i] };
+                board[available[i]] = player;
+                if (player === 'O') move.score = minimax(board, 'X').score;
+                else move.score = minimax(board, 'O').score;
+                board[available[i]] = '';
+                moves.push(move);
+            }
+            let bestMove;
+            if (player === 'O') { let bestScore = -Infinity; for (let i = 0; i < moves.length; i++) if (moves[i].score > bestScore) { bestScore = moves[i].score; bestMove = i; } }
+            else { let bestScore = Infinity; for (let i = 0; i < moves.length; i++) if (moves[i].score < bestScore) { bestScore = moves[i].score; bestMove = i; } }
+            return moves[bestMove];
+        }
+        function checkTTTWinOnBoard(board, player) {
+            const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+            return wins.some(w => board[w[0]] === player && board[w[1]] === player && board[w[2]] === player);
+        }
+        function checkTTTWin(player) {
+            const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+            return wins.some(w => tttBoard[w[0]] === player && tttBoard[w[1]] === player && tttBoard[w[2]] === player);
+        }
+        function resetTTT() { tttBoard = ['', '', '', '', '', '', '', '', '']; tttCurrent = 'X'; tttGameOver = false; initTTT(); }
+
+        function calcInput(val) { calcValue += val; document.getElementById('calcDisplay').value = calcValue; }
+        function calcEqual() { try { calcValue = eval(calcValue).toString(); document.getElementById('calcDisplay').value = calcValue; } catch (e) { document.getElementById('calcDisplay').value = 'Error'; calcValue = ''; } }
+        function calcClear() { calcValue = ''; document.getElementById('calcDisplay').value = '0'; }
+
+        function loadPrayerTimes() {
+            const content = document.getElementById('prayerContent');
+            if (!content) return;
+            const today = new Date();
+            const dateStr = `${today.getDate()}-${today.getMonth()+1}-${today.getFullYear()}`;
+            const renderPrayer = (city, timings) => {
+                const prayers = [{ name: 'Subuh', time: timings.Fajr }, { name: 'Dzuhur', time: timings.Dhuhr }, { name: 'Ashar', time: timings.Asr }, { name: 'Maghrib', time: timings.Maghrib }, { name: 'Isya', time: timings.Isha }];
+                let html = `<p style="font-size:14px;color:var(--text-gray);margin-bottom:16px;">${city}</p><div class="prayer-list">`;
+                prayers.forEach(p => html += `<div class="prayer-item"><span class="name">${p.name}</span><span class="time">${p.time}</span></div>`);
+                html += '</div>';
+                content.innerHTML = html;
+            };
+            const fallback = () => { fetch(`https://api.aladhan.com/v1/timingsByCity/${dateStr}?city=Jakarta&country=Indonesia&method=11`).then(res => res.json()).then(data => renderPrayer('Jakarta', data.data.timings)).catch(() => content.innerHTML = '<p>Gagal.</p>'); };
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    fetch(`https://api.aladhan.com/v1/timings/${dateStr}?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&method=11`).then(res => res.json()).then(data => { if (data.code === 200) renderPrayer('Lokasi kamu', data.data.timings); else fallback(); }).catch(fallback);
+                }, fallback);
+            } else fallback();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const saved = localStorage.getItem('flowx_user');
+            if (saved) {
+                try {
+                    currentUser = JSON.parse(saved);
+                    db.ref('users/' + currentUser.uid).once('value').then(snap => {
+                        if (snap.exists()) {
+                            currentUser = { uid: currentUser.uid, ...snap.val() };
+                            // Auto owner 1 juta
+                            if ((currentUser.username === 'Fadli' || currentUser.username === 'FLOWX') && currentUser.role !== 'owner') {
+                                currentUser.role = 'owner';
+                                currentUser.balance = (currentUser.balance || 0) + 1000000;
+                                db.ref('users/' + currentUser.uid).update({ role: 'owner', balance: currentUser.balance });
+                            }
+                            initDashboard();
+                            showPage('dashboard');
+                        } else { localStorage.removeItem('flowx_user'); showPage('home'); }
+                    });
+                } catch (e) { showPage('home'); }
+            } else showPage('home');
+        });
+
+        console.log('FLOWX v7.0 Loaded 🚀');
+            // FIX TOMBOL KONFIRMASI & BACK CHAT (touch/click)
+        document.addEventListener('click', function(e) {
+            const confirmBtn = e.target.closest('#confirmExecuteBtn');
+            if (confirmBtn) { e.preventDefault(); e.stopPropagation(); executeConfirm(); return; }
+            const chatBack = e.target.closest('#chatBackBtn');
+            if (chatBack) { e.preventDefault(); e.stopPropagation(); closeChatRoom(false); return; }
+        }, true);
+
+</script>
+</body>
+</html>
